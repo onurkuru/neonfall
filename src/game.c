@@ -64,8 +64,14 @@ static Lamp lamps[NUM_LAMPS];
 static const char *asset_root(void) {
     static char root[512];
     if (root[0]) return root;
+#ifdef VITA
+    const char *fallback = "app0:assets";
+    const char *env = NULL;
+#else
+    const char *fallback = "assets";
     const char *env = getenv("NEONFALL_ASSETS");
-    snprintf(root, sizeof root, "%s", env ? env : "assets");
+#endif
+    snprintf(root, sizeof root, "%s", env ? env : fallback);
     return root;
 }
 

@@ -60,7 +60,7 @@ double plat_time(void) {
     return (double)t.tick / (double)tick_res;
 }
 
+/* This vitaGL exposes no teardown entry point; the process exit releases GXM. */
 void plat_shutdown(void) {
-    vglEnd();
     sceKernelExitProcess(0);
 }

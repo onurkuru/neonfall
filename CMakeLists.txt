@@ -28,16 +28,25 @@ if(BUILD_VITA)
   add_executable(neonfall ${SRC} src/platform_vita.c)
   target_compile_definitions(neonfall PRIVATE VITA)
   target_compile_options(neonfall PRIVATE -O2 -Wall)
+  # vitaGL ships C++ objects (the shader expression parser), so the C++
+  # runtime has to come along even though every source here is C.
   target_link_libraries(neonfall
-    vitaGL vitashark SceShaccCgExt mathneon taihen_stub
+    vitaGL vitashark SceShaccCgExt mathneon stdc++ taihen_stub
     SceShaccCg_stub SceDisplay_stub SceGxm_stub SceCtrl_stub
     SceCommonDialog_stub SceAppMgr_stub SceSysmodule_stub
     SceTouch_stub SceKernelDmacMgr_stub m
   )
   vita_create_self(eboot.bin neonfall UNSAFE)
+  file(GLOB_RECURSE NF_ASSETS RELATIVE "${CMAKE_SOURCE_DIR}" "assets/*.png")
+  set(VPK_FILES "")
+  foreach(a ${NF_ASSETS})
+    list(APPEND VPK_FILES FILE "${CMAKE_SOURCE_DIR}/${a}" "${a}")
+  endforeach()
+
   vita_create_vpk(neonfall.vpk ${VITA_TITLEID} eboot.bin
     VERSION ${VITA_VERSION}
     NAME ${VITA_APP_NAME}
+    ${VPK_FILES}
   )
 else()
   execute_process(COMMAND sdl2-config --cflags OUTPUT_VARIABLE SDL_CFLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
