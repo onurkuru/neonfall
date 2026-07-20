@@ -1,0 +1,610 @@
+{
+ "player": [
+  {
+   "file": "player/player-00.png",
+   "index": 0,
+   "src_box": [
+    135,
+    68,
+    435,
+    387
+   ],
+   "w": 301,
+   "h": 320
+  },
+  {
+   "file": "player/player-01.png",
+   "index": 1,
+   "src_box": [
+    624,
+    188,
+    972,
+    975
+   ],
+   "w": 227,
+   "h": 512
+  },
+  {
+   "file": "player/player-02.png",
+   "index": 2,
+   "src_box": [
+    1058,
+    64,
+    1381,
+    859
+   ],
+   "w": 208,
+   "h": 512
+  },
+  {
+   "file": "player/player-03.png",
+   "index": 3,
+   "src_box": [
+    1441,
+    73,
+    1995,
+    958
+   ],
+   "w": 321,
+   "h": 512
+  },
+  {
+   "file": "player/player-04.png",
+   "index": 4,
+   "src_box": [
+    68,
+    461,
+    223,
+    759
+   ],
+   "w": 156,
+   "h": 299
+  },
+  {
+   "file": "player/player-05.png",
+   "index": 5,
+   "src_box": [
+    356,
+    475,
+    506,
+    773
+   ],
+   "w": 151,
+   "h": 299
+  },
+  {
+   "file": "player/player-06.png",
+   "index": 6,
+   "src_box": [
+    69,
+    793,
+    162,
+    1050
+   ],
+   "w": 94,
+   "h": 258
+  },
+  {
+   "file": "player/player-07.png",
+   "index": 7,
+   "src_box": [
+    431,
+    794,
+    584,
+    1050
+   ],
+   "w": 154,
+   "h": 257
+  },
+  {
+   "file": "player/player-08.png",
+   "index": 8,
+   "src_box": [
+    99,
+    1079,
+    227,
+    1287
+   ],
+   "w": 129,
+   "h": 209
+  },
+  {
+   "file": "player/player-09.png",
+   "index": 9,
+   "src_box": [
+    546,
+    1072,
+    689,
+    1284
+   ],
+   "w": 144,
+   "h": 213
+  },
+  {
+   "file": "player/player-10.png",
+   "index": 10,
+   "src_box": [
+    822,
+    1037,
+    1022,
+    1448
+   ],
+   "w": 201,
+   "h": 412
+  },
+  {
+   "file": "player/player-11.png",
+   "index": 11,
+   "src_box": [
+    1104,
+    1025,
+    1236,
+    1435
+   ],
+   "w": 133,
+   "h": 411
+  },
+  {
+   "file": "player/player-12.png",
+   "index": 12,
+   "src_box": [
+    1308,
+    1015,
+    1434,
+    1394
+   ],
+   "w": 127,
+   "h": 380
+  },
+  {
+   "file": "player/player-13.png",
+   "index": 13,
+   "src_box": [
+    1690,
+    1051,
+    1767,
+    1972
+   ],
+   "w": 43,
+   "h": 512
+  },
+  {
+   "file": "player/player-14.png",
+   "index": 14,
+   "src_box": [
+    1850,
+    1153,
+    1985,
+    1970
+   ],
+   "w": 85,
+   "h": 512
+  },
+  {
+   "file": "player/player-15.png",
+   "index": 15,
+   "src_box": [
+    841,
+    1475,
+    1131,
+    1997
+   ],
+   "w": 285,
+   "h": 512
+  },
+  {
+   "file": "player/player-16.png",
+   "index": 16,
+   "src_box": [
+    1113,
+    1463,
+    1238,
+    1869
+   ],
+   "w": 126,
+   "h": 407
+  },
+  {
+   "file": "player/player-17.png",
+   "index": 17,
+   "src_box": [
+    406,
+    1744,
+    683,
+    1998
+   ],
+   "w": 278,
+   "h": 255
+  },
+  {
+   "file": "player/player-18.png",
+   "index": 18,
+   "src_box": [
+    1284,
+    1744,
+    1561,
+    1998
+   ],
+   "w": 278,
+   "h": 255
+  }
+ ],
+ "drone": [
+  {
+   "file": "drone/drone-00.png",
+   "index": 0,
+   "src_box": [
+    944,
+    52,
+    1326,
+    304
+   ],
+   "w": 383,
+   "h": 253
+  },
+  {
+   "file": "drone/drone-01.png",
+   "index": 1,
+   "src_box": [
+    486,
+    349,
+    1901,
+    1036
+   ],
+   "w": 512,
+   "h": 249
+  },
+  {
+   "file": "drone/drone-02.png",
+   "index": 2,
+   "src_box": [
+    86,
+    662,
+    380,
+    931
+   ],
+   "w": 295,
+   "h": 270
+  },
+  {
+   "file": "drone/drone-03.png",
+   "index": 3,
+   "src_box": [
+    1266,
+    880,
+    1634,
+    1057
+   ],
+   "w": 369,
+   "h": 178
+  },
+  {
+   "file": "drone/drone-04.png",
+   "index": 4,
+   "src_box": [
+    433,
+    1173,
+    768,
+    1395
+   ],
+   "w": 336,
+   "h": 223
+  },
+  {
+   "file": "drone/drone-05.png",
+   "index": 5,
+   "src_box": [
+    867,
+    1174,
+    1947,
+    1896
+   ],
+   "w": 512,
+   "h": 342
+  },
+  {
+   "file": "drone/drone-06.png",
+   "index": 6,
+   "src_box": [
+    1253,
+    1142,
+    1589,
+    1364
+   ],
+   "w": 337,
+   "h": 223
+  }
+ ],
+ "guard": [
+  {
+   "file": "guard/guard-00.png",
+   "index": 0,
+   "src_box": [
+    70,
+    51,
+    472,
+    475
+   ],
+   "w": 403,
+   "h": 425
+  },
+  {
+   "file": "guard/guard-01.png",
+   "index": 1,
+   "src_box": [
+    590,
+    42,
+    1451,
+    735
+   ],
+   "w": 512,
+   "h": 412
+  },
+  {
+   "file": "guard/guard-02.png",
+   "index": 2,
+   "src_box": [
+    1523,
+    147,
+    1970,
+    462
+   ],
+   "w": 448,
+   "h": 316
+  },
+  {
+   "file": "guard/guard-03.png",
+   "index": 3,
+   "src_box": [
+    64,
+    550,
+    384,
+    985
+   ],
+   "w": 321,
+   "h": 436
+  },
+  {
+   "file": "guard/guard-04.png",
+   "index": 4,
+   "src_box": [
+    439,
+    549,
+    759,
+    986
+   ],
+   "w": 321,
+   "h": 438
+  },
+  {
+   "file": "guard/guard-05.png",
+   "index": 5,
+   "src_box": [
+    1371,
+    588,
+    1945,
+    772
+   ],
+   "w": 512,
+   "h": 165
+  },
+  {
+   "file": "guard/guard-06.png",
+   "index": 6,
+   "src_box": [
+    823,
+    854,
+    1325,
+    1032
+   ],
+   "w": 503,
+   "h": 179
+  },
+  {
+   "file": "guard/guard-07.png",
+   "index": 7,
+   "src_box": [
+    1446,
+    853,
+    1941,
+    1031
+   ],
+   "w": 496,
+   "h": 179
+  },
+  {
+   "file": "guard/guard-08.png",
+   "index": 8,
+   "src_box": [
+    75,
+    1071,
+    459,
+    2002
+   ],
+   "w": 212,
+   "h": 512
+  },
+  {
+   "file": "guard/guard-09.png",
+   "index": 9,
+   "src_box": [
+    485,
+    1064,
+    890,
+    2000
+   ],
+   "w": 222,
+   "h": 512
+  },
+  {
+   "file": "guard/guard-10.png",
+   "index": 10,
+   "src_box": [
+    868,
+    1174,
+    1101,
+    1698
+   ],
+   "w": 228,
+   "h": 512
+  },
+  {
+   "file": "guard/guard-11.png",
+   "index": 11,
+   "src_box": [
+    1190,
+    1142,
+    1447,
+    1653
+   ],
+   "w": 258,
+   "h": 512
+  },
+  {
+   "file": "guard/guard-12.png",
+   "index": 12,
+   "src_box": [
+    1274,
+    1622,
+    1969,
+    1989
+   ],
+   "w": 512,
+   "h": 271
+  }
+ ],
+ "props": [
+  {
+   "file": "props/props-00.png",
+   "index": 0,
+   "src_box": [
+    56,
+    71,
+    327,
+    741
+   ],
+   "w": 208,
+   "h": 512
+  },
+  {
+   "file": "props/props-01.png",
+   "index": 1,
+   "src_box": [
+    388,
+    195,
+    876,
+    549
+   ],
+   "w": 489,
+   "h": 355
+  },
+  {
+   "file": "props/props-02.png",
+   "index": 2,
+   "src_box": [
+    909,
+    47,
+    1178,
+    634
+   ],
+   "w": 235,
+   "h": 512
+  },
+  {
+   "file": "props/props-03.png",
+   "index": 3,
+   "src_box": [
+    1221,
+    79,
+    1915,
+    647
+   ],
+   "w": 512,
+   "h": 419
+  },
+  {
+   "file": "props/props-04.png",
+   "index": 4,
+   "src_box": [
+    602,
+    733,
+    1401,
+    1153
+   ],
+   "w": 512,
+   "h": 269
+  },
+  {
+   "file": "props/props-05.png",
+   "index": 5,
+   "src_box": [
+    55,
+    816,
+    562,
+    1218
+   ],
+   "w": 508,
+   "h": 403
+  },
+  {
+   "file": "props/props-06.png",
+   "index": 6,
+   "src_box": [
+    1466,
+    853,
+    2002,
+    1292
+   ],
+   "w": 512,
+   "h": 420
+  },
+  {
+   "file": "props/props-07.png",
+   "index": 7,
+   "src_box": [
+    1049,
+    1090,
+    1466,
+    1972
+   ],
+   "w": 242,
+   "h": 512
+  },
+  {
+   "file": "props/props-08.png",
+   "index": 8,
+   "src_box": [
+    512,
+    1287,
+    965,
+    1987
+   ],
+   "w": 332,
+   "h": 512
+  },
+  {
+   "file": "props/props-09.png",
+   "index": 9,
+   "src_box": [
+    85,
+    1453,
+    420,
+    1968
+   ],
+   "w": 333,
+   "h": 512
+  },
+  {
+   "file": "props/props-10.png",
+   "index": 10,
+   "src_box": [
+    1179,
+    1581,
+    2003,
+    1961
+   ],
+   "w": 512,
+   "h": 236
+  }
+ ]
+}

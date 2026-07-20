@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "neonfall.h"
+#include "skel.h"
 
 #define GROUND_Y      0.0f
 #define GRAVITY      -58.0f
@@ -17,6 +18,7 @@
 #define DASH_SPEED    26.0f
 #define DASH_TIME     0.16f
 #define DASH_COOLDOWN 0.42f
+
 
 /* depth planes: negative is away from the camera */
 #define Z_SKY      -260.0f
@@ -41,17 +43,16 @@ typedef struct {
     float energy;
 } Player;
 
-typedef struct { Tex tex; int frames; float fps; } Anim;
 typedef struct { float x, y, z, len, speed; } Drop;
 
 static Player pl;
 static float  cam_x, cam_y, shake, clock_t_;
 static uint32_t rng_state = 0x1337c0deu;
 
-static Tex tx_white, tx_glow, tx_soft, tx_streak, tx_sky;
-static Tex tx_layer[5];
-static Tex tx_deck, tx_slab;
-static Anim an_idle, an_run, an_jump, an_shoot;
+static Tex tx_white, tx_glow, tx_soft, tx_streak;
+static Tex tx_layer[6];
+static Tex tx_deck;
+static Rig rig;
 
 #define NUM_DROPS 200
 static Drop drops[NUM_DROPS];
@@ -86,23 +87,6 @@ static Tex make_white(void) {
     return tex_from_rgba(px, 1, 1);
 }
 
-static Tex make_sky(int n) {
-    unsigned char *px = (unsigned char *)malloc(n * 4);
-    for (int i = 0; i < n; i++) {
-        float t = (float)i / (float)(n - 1);          /* 0 top, 1 horizon */
-        float r = lerpf(0.055f, 0.230f, powf(t, 1.9f));
-        float g = lerpf(0.030f, 0.070f, powf(t, 2.6f));
-        float b = lerpf(0.115f, 0.235f, powf(t, 1.4f));
-        px[i * 4 + 0] = (unsigned char)(clampf(r, 0, 1) * 255.0f);
-        px[i * 4 + 1] = (unsigned char)(clampf(g, 0, 1) * 255.0f);
-        px[i * 4 + 2] = (unsigned char)(clampf(b, 0, 1) * 255.0f);
-        px[i * 4 + 3] = 255;
-    }
-    Tex t = tex_from_rgba(px, 1, n);
-    free(px);
-    return t;
-}
-
 void game_init(void) {
     memset(&pl, 0, sizeof pl);
     pl.facing = 1;
@@ -114,20 +98,16 @@ void game_init(void) {
     tx_glow   = tex_glow(64, 2.0f);
     tx_soft   = tex_soft_bar(32, 32);
     tx_streak = tex_streak(8, 48);
-    tx_sky    = make_sky(256);
 
-    tx_layer[0] = load("bg/layer1-far.png", 1);
+    tx_layer[0] = load("bg/layer1-sky.png", 1);
     tx_layer[1] = load("bg/layer2-skyline.png", 1);
     tx_layer[2] = load("bg/layer3-mid.png", 1);
-    tx_layer[3] = load("bg/layer4-near.png", 1);
-    tx_layer[4] = load("bg/layer5-front.png", 1);
-    tx_deck     = load("tiles/deck.png", 1);
-    tx_slab     = load("tiles/slab.png", 0);
+    tx_layer[3] = load("bg/layer4-near2.png", 1);
+    tx_layer[4] = load("bg/layer4-near.png", 1);
+    tx_layer[5] = load("bg/layer5-fore.png", 1);
+    tx_deck     = load("tiles/walkway.png", 1);
 
-    an_idle  = (Anim){ load("player/idle.png", 0),  4, 8.0f  };
-    an_run   = (Anim){ load("player/run.png", 0),   8, 14.0f };
-    an_jump  = (Anim){ load("player/jump.png", 0),  5, 10.0f };
-    an_shoot = (Anim){ load("player/shoot.png", 0), 1, 10.0f };
+    skel_load_player(&rig);
 
     for (int i = 0; i < NUM_DROPS; i++) {
         Drop *d = &drops[i];
@@ -220,18 +200,9 @@ static void update_player(const Input *in, float dt) {
     if (pl.x < -140.0f) pl.x = -140.0f;
     if (pl.x >  160.0f) pl.x =  160.0f;
 
-    /* animation clock */
-    const Anim *a = !pl.on_ground ? &an_jump
-                  : (pl.attack_t > 0.0f ? &an_shoot
-                  : (fabsf(pl.vx) > 0.6f ? &an_run : &an_idle));
-    pl.anim_t += dt * a->fps;
-    if (!pl.on_ground) {
-        /* hold the apex frame instead of looping the jump */
-        int f = (int)pl.anim_t;
-        pl.anim_frame = f < a->frames ? f : a->frames - 1;
-    } else {
-        pl.anim_frame = ((int)pl.anim_t) % a->frames;
-    }
+    /* the run cycle is driven by distance travelled, not by wall time */
+    if (pl.on_ground) pl.anim_t += dt * fabsf(pl.vx) * 0.62f;
+    else              pl.anim_t += dt;
 }
 
 void game_update(const Input *in, float dt) {
@@ -240,6 +211,7 @@ void game_update(const Input *in, float dt) {
     int was_air = !pl.on_ground;
     update_player(in, dt);
     if (was_air != !pl.on_ground) pl.anim_t = 0.0f;
+    if (pl.on_ground && fabsf(pl.vx) < 0.6f) pl.anim_t = clock_t_;
 
     float target_x = pl.x + pl.vx * 0.22f;
     float target_y = 4.2f + pl.y * 0.40f;
@@ -267,8 +239,17 @@ static float depth_scale(float z) { return (CAM_Z - z) / CAM_Z; }
 
 /* Tiled parallax layer. Height is given in play-plane units so art stays
    legible no matter how far back it sits; parallax then comes from z alone. */
+static int layer_filter = -2;   /* NEONFALL_LAYER isolates one band for debugging */
+static int layer_seq;
+
 static void draw_layer(Tex t, float z, float height_units, float y_base, Color c) {
     if (!t.id) return;
+    if (layer_filter == -2) {
+        const char *e = getenv("NEONFALL_LAYER");
+        layer_filter = e ? atoi(e) : -1;
+    }
+    int me = layer_seq++;
+    if (layer_filter >= 0 && me != layer_filter) return;
     float s = depth_scale(z);
     float h = height_units * s;
     float w = h * (float)t.w / (float)t.h;
@@ -277,7 +258,9 @@ static void draw_layer(Tex t, float z, float height_units, float y_base, Color c
        wider the further back you go */
     float half_view = VIEW_H * ((float)SCREEN_W / (float)SCREEN_H) * 0.5f * s;
     float start = floorf((cam_x - half_view - w) / w) * w;
-    float y = y_base * s + h * 0.5f;
+    /* place the layer so it lands where we want it on screen, whatever its
+       depth: convert the desired play-plane position back out to depth z */
+    float y = cam_y + (y_base + height_units * 0.5f - cam_y) * s;
 
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(t);
@@ -286,19 +269,13 @@ static void draw_layer(Tex t, float z, float height_units, float y_base, Color c
 }
 
 static void draw_sky(void) {
-    rnd_set_blend(BLEND_ALPHA);
-    rnd_set_tex(tx_sky);
-    /* the sky is a backdrop, not a place: it follows the camera outright */
-    float s = depth_scale(Z_SKY);
-    rnd_quad(cam_x, cam_y + 6.0f * s, Z_SKY,
-             VIEW_H * 2.4f * s, VIEW_H * 1.5f * s, rgba(1, 1, 1, 1));
-
     rnd_set_blend(BLEND_ADD);
     rnd_set_tex(tx_glow);
-    rnd_quad(-30.0f, 18.0f, Z_SKY + 20.0f, 700.0f, 260.0f,
-             rgba(0.40f, 0.12f, 0.46f, 0.30f));
-    rnd_quad(140.0f, 12.0f, Z_SKY + 20.0f, 560.0f, 210.0f,
-             rgba(0.10f, 0.34f, 0.58f, 0.26f));
+    /* the city's light dome, painted straight onto the sky layer */
+    rnd_quad(cam_x - 30.0f, 18.0f, Z_SKY + 20.0f, 700.0f, 260.0f,
+             rgba(0.34f, 0.10f, 0.42f, 0.22f));
+    rnd_quad(cam_x + 140.0f, 12.0f, Z_SKY + 20.0f, 560.0f, 210.0f,
+             rgba(0.08f, 0.28f, 0.52f, 0.20f));
 }
 
 /* Aerial perspective wash sitting in front of a depth band. */
@@ -312,17 +289,21 @@ static void draw_haze(float z, float density) {
 }
 
 static void draw_background(void) {
+    /* every layer is anchored by its base near the walkway line and rises
+       past the top of the frame, so the city towers over the player */
+    draw_layer(tx_layer[0], Z_SKY, 34.0f, -8.0f, rgba(1.0f, 1.0f, 1.0f, 1.0f));
     draw_sky();
-    draw_layer(tx_layer[0], Z_L1, 15.0f, -1.0f, rgba(0.60f, 0.54f, 0.80f, 1.0f));
-    draw_haze(Z_L1 + 8.0f, 0.36f);
-    draw_layer(tx_layer[1], Z_L2, 13.0f, -2.0f, rgba(0.74f, 0.70f, 0.92f, 1.0f));
-    draw_haze(Z_L2 + 6.0f, 0.24f);
-    draw_layer(tx_layer[2], Z_L3, 11.0f, -2.5f, rgba(0.88f, 0.86f, 1.00f, 1.0f));
-    draw_haze(Z_L3 + 5.0f, 0.15f);
-    draw_layer(tx_layer[3], Z_L4, 9.5f, -3.0f, rgba(1.0f, 1.0f, 1.0f, 1.0f));
-    draw_haze(Z_L4 + 4.0f, 0.08f);
+    draw_layer(tx_layer[1], Z_L1, 21.0f, -1.5f, rgba(0.60f, 0.56f, 0.80f, 1.0f));
+    draw_haze(Z_L1 + 8.0f, 0.30f);
+    draw_layer(tx_layer[2], Z_L2, 19.0f, -2.5f, rgba(0.76f, 0.73f, 0.93f, 1.0f));
+    draw_haze(Z_L2 + 6.0f, 0.20f);
+    /* layer4-near came back as an opaque haze plate rather than a keyed band,
+       so it serves as an extra depth wash instead of a city layer */
+    draw_layer(tx_layer[4], Z_L3 - 6.0f, 20.0f, -3.0f, rgba(0.7f, 0.66f, 0.9f, 0.35f));
+    draw_layer(tx_layer[3], Z_L4, 15.0f, -3.5f, rgba(1.0f, 1.0f, 1.0f, 1.0f));
+    draw_haze(Z_L4 + 4.0f, 0.06f);
     /* nearest band reads as a dark silhouette rather than another city block */
-    draw_layer(tx_layer[4], Z_L5, 7.0f, -3.5f, rgba(0.20f, 0.17f, 0.38f, 1.0f));
+    draw_layer(tx_layer[5], Z_L5, 13.0f, -4.5f, rgba(0.30f, 0.27f, 0.48f, 1.0f));
 }
 
 static float flicker(const Lamp *l) {
@@ -347,10 +328,12 @@ static void draw_lamps(void) {
 
 static void draw_deck(void) {
     if (!tx_deck.id) return;
-    float tile_w = tx_deck.w / PPU;          /* world units per tile */
-    float tile_h = tx_deck.h / PPU;
-    /* the walking surface is the texture's top row */
-    float y = GROUND_Y - tile_h * 0.5f;
+    /* the painted walkway is sized in world units, not by pixel scale;
+       WALK_SURFACE is where the deck's top edge sits inside the texture */
+    const float tile_w = 8.0f;
+    const float tile_h = tile_w * (float)tx_deck.h / (float)tx_deck.w;
+    const float WALK_SURFACE = 0.30f;        /* 0 = texture top, 1 = bottom */
+    float y = GROUND_Y - tile_h * (0.5f - WALK_SURFACE);
 
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(tx_deck);
@@ -374,43 +357,43 @@ static void draw_deck(void) {
 }
 
 static void draw_player(void) {
-    const Anim *a = !pl.on_ground ? &an_jump
-                  : (pl.attack_t > 0.0f ? &an_shoot
-                  : (fabsf(pl.vx) > 0.6f ? &an_run : &an_idle));
-    if (!a->tex.id) return;
+    rig.facing = pl.facing;
+    rig.root_x = pl.x;
+    rig.root_y = pl.y + skel_hip_height(&rig);
 
-    int fw = a->tex.w / a->frames, fh = a->tex.h;
-    float w = fw / PPU, h = fh / PPU;
-    float u0 = (float)(pl.anim_frame * fw) / (float)a->tex.w;
-    float u1 = (float)((pl.anim_frame + 1) * fw) / (float)a->tex.w;
-    if (pl.facing < 0) { float t = u0; u0 = u1; u1 = t; }
+    if (pl.dash_t > 0.0f)          skel_pose_dash(&rig);
+    else if (pl.attack_t > 0.0f)   skel_pose_attack(&rig, 1.0f - pl.attack_t / 0.24f);
+    else if (!pl.on_ground)        skel_pose_air(&rig, pl.vy);
+    else if (fabsf(pl.vx) > 0.6f)  skel_pose_run(&rig, pl.anim_t * 6.2831853f,
+                                                 fabsf(pl.vx) / RUN_SPEED);
+    else                           skel_pose_idle(&rig, pl.anim_t);
 
-    /* backlight so the sprite separates from the walkway */
+    /* backlight so the silhouette separates from the walkway */
     rnd_set_blend(BLEND_ADD);
     rnd_set_tex(tx_glow);
-    rnd_quad(pl.x, pl.y + h * 0.45f, Z_PLAY - 0.5f, w * 2.6f, h * 1.9f,
-             rgba(0.16f, 0.48f, 0.80f, 0.26f));
+    rnd_quad(pl.x, pl.y + 1.3f, Z_PLAY - 0.6f, 6.0f, 5.0f,
+             rgba(0.16f, 0.48f, 0.80f, 0.22f));
 
-    rnd_set_blend(BLEND_ALPHA);
-    rnd_set_tex(a->tex);
-    rnd_quad_uv(pl.x, pl.y + h * 0.5f, Z_PLAY, w, h, u0, 0.0f, u1, 1.0f,
-                rgba(1, 1, 1, 1));
-
+    /* dash leaves a fading trail of the previous pose */
     if (pl.dash_t > 0.0f) {
-        rnd_set_blend(BLEND_ADD);
-        rnd_set_tex(a->tex);
-        for (int i = 1; i <= 3; i++)
-            rnd_quad_uv(pl.x - pl.facing * i * 0.9f, pl.y + h * 0.5f, Z_PLAY - 0.2f,
-                        w, h, u0, 0.0f, u1, 1.0f,
-                        rgba(0.25f, 0.70f, 1.0f, 0.22f / i));
+        Rig ghost = rig;
+        for (int i = 1; i <= 3; i++) {
+            ghost.root_x = pl.x - pl.facing * i * 0.75f;
+            ghost.alpha = 0.20f / i;
+            skel_draw(&ghost, Z_PLAY - 0.3f);
+        }
+        rig.alpha = 1.0f;
     }
+
+    skel_draw(&rig, Z_PLAY);
+
     if (pl.attack_t > 0.0f) {
         float t = 1.0f - (pl.attack_t / 0.24f);
         rnd_set_blend(BLEND_ADD);
         rnd_set_tex(tx_glow);
-        rnd_quad(pl.x + pl.facing * (1.4f + t * 1.2f), pl.y + h * 0.55f,
-                 Z_PLAY + 0.3f, 3.0f, 1.6f,
-                 rgba(0.45f, 0.85f, 1.0f, (1.0f - t) * 0.5f));
+        rnd_quad(pl.x + pl.facing * (1.3f + t * 1.1f), pl.y + 1.5f,
+                 Z_PLAY + 0.4f, 3.4f, 2.0f,
+                 rgba(0.45f, 0.85f, 1.0f, (1.0f - t) * 0.45f));
     }
 }
 
@@ -447,6 +430,7 @@ static void draw_hud(void) {
 }
 
 void game_draw(void) {
+    layer_seq = 0;
     float sh = shake > 0.0f ? sinf(clock_t_ * 90.0f) * shake * 0.5f : 0.0f;
     rnd_camera(cam_x, cam_y, sh);
 

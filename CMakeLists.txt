@@ -17,6 +17,7 @@ set(SRC
   src/game.c
   src/render.c
   src/batch.c
+  src/skel.c
 )
 
 if(BUILD_VITA)
@@ -37,7 +38,9 @@ if(BUILD_VITA)
     SceTouch_stub SceKernelDmacMgr_stub m
   )
   vita_create_self(eboot.bin neonfall UNSAFE)
+  # assets/raw holds the generated masters; only ingested art ships
   file(GLOB_RECURSE NF_ASSETS RELATIVE "${CMAKE_SOURCE_DIR}" "assets/*.png")
+  list(FILTER NF_ASSETS EXCLUDE REGEX "^assets/raw/")
   set(VPK_FILES "")
   foreach(a ${NF_ASSETS})
     list(APPEND VPK_FILES FILE "${CMAKE_SOURCE_DIR}/${a}" "${a}")

@@ -295,6 +295,28 @@ void rnd_quad_rot(float x, float y, float z, float w, float h, float rot, Color 
                z, 0.0f, 0.0f, 1.0f, 1.0f, c);
 }
 
+/* Quad rotated around an arbitrary pivot given in 0..1 texture space, with
+   optional horizontal flip. This is what the bone hierarchy draws through. */
+void rnd_sprite(float x, float y, float z, float w, float h,
+                float pivot_x, float pivot_y, float rot, int flip, Color c) {
+    float lx = -pivot_x * w, rx = (1.0f - pivot_x) * w;
+    /* pivot_y is measured from the top of the texture */
+    float ty = pivot_y * h, by = ty - h;
+    float cx[4] = { lx, rx, rx, lx };
+    float cy[4] = { by, by, ty, ty };
+    if (flip) {
+        cx[0] = -lx; cx[1] = -rx; cx[2] = -rx; cx[3] = -lx;
+    }
+    float s = sinf(rot), co = cosf(rot);
+    float px[4], py[4];
+    for (int i = 0; i < 4; i++) {
+        px[i] = x + cx[i] * co - cy[i] * s;
+        py[i] = y + cx[i] * s + cy[i] * co;
+    }
+    batch_push(px[0], py[0], px[1], py[1], px[2], py[2], px[3], py[3],
+               z, 0.0f, 0.0f, 1.0f, 1.0f, c);
+}
+
 void rnd_ui_begin(void) {
     rnd_flush();
     ui_mode = 1;

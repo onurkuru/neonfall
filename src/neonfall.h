@@ -75,6 +75,9 @@ void rnd_quad_uv(float x, float y, float z, float w, float h,
                  float u0, float v0, float u1, float v1, Color c);
 /* Quad rotated around its centre (radians). */
 void rnd_quad_rot(float x, float y, float z, float w, float h, float rot, Color c);
+/* Quad rotated around a pivot in 0..1 texture space, optionally flipped. */
+void rnd_sprite(float x, float y, float z, float w, float h,
+                float pivot_x, float pivot_y, float rot, int flip, Color c);
 /* Screen-space quad, pixel coordinates, origin top-left. */
 void rnd_ui_begin(void);
 void rnd_ui_quad(float x, float y, float w, float h, Color c);
