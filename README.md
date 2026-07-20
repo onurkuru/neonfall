@@ -46,6 +46,8 @@ cmake --build build-vita --target neonfall.vpk-vpk
 | `NEONFALL_SHOT=path.bmp` | Capture a frame and exit |
 | `NEONFALL_SHOT_FRAME=n` | Which frame to capture (default 120) |
 | `NEONFALL_ASSETS=dir` | Asset root (default `assets`) |
+| `NEONFALL_LIT=1` | Draw the character fully painted instead of as a silhouette |
+| `NEONFALL_LAYER=n` | Draw only parallax layer n (debugging) |
 
 ## Art pipeline
 

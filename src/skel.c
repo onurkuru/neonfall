@@ -46,6 +46,7 @@ void skel_load_player(Rig *r) {
     for (int i = 0; i < BONE_COUNT; i++) r->rot[i] = 0.0f;
     r->facing = 1;
     r->alpha = 1.0f;
+    r->tint = rgba(1, 1, 1, 1);
 
     /* Torso is the root; its pivot is the hip, so it stands up from there. */
     set(r, B_TORSO,       -1,            P_TORSO,      0.00f,  0.00f, 0.50f, 0.97f,   0, 1.00f);
@@ -230,6 +231,30 @@ void skel_draw(const Rig *r, float z) {
         rnd_set_tex(b->tex);
         rnd_sprite(wx[i], wy[i], z + i * 0.004f, w, h,
                    b->px, b->py, wr[i], r->facing < 0,
-                   rgba(s, s, s, r->alpha));
+                   rgba(s * r->tint.r, s * r->tint.g, s * r->tint.b,
+                        r->alpha * r->tint.a));
     }
+}
+
+/* Draw the rig as a near-black shape, then smear a lit copy behind it so the
+   edge facing the light picks up a rim. Cheap, and it is what sells a
+   silhouette-first look without any extra art. */
+void skel_draw_silhouette(const Rig *r, float z, Color body, Color rim, float rim_width) {
+    Rig pass = *r;
+
+    rnd_set_blend(BLEND_ADD);
+    pass.tint = rim;
+    pass.alpha = rim.a;
+    for (int i = 0; i < 4; i++) {
+        float ang = i * 1.5707963f;
+        Rig off = pass;
+        off.root_x = r->root_x + cosf(ang) * rim_width * (i == 0 ? 1.6f : 1.0f);
+        off.root_y = r->root_y + sinf(ang) * rim_width;
+        skel_draw(&off, z - 0.05f);
+    }
+
+    rnd_set_blend(BLEND_ALPHA);
+    pass = *r;
+    pass.tint = body;
+    skel_draw(&pass, z);
 }

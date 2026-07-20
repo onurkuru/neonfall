@@ -385,7 +385,15 @@ static void draw_player(void) {
         rig.alpha = 1.0f;
     }
 
-    skel_draw(&rig, Z_PLAY);
+    /* Silhouette-first: the character reads by shape against the neon, and
+       the painted interior detail never has to survive being 100px tall.
+       NEONFALL_LIT=1 shows the fully painted version for comparison. */
+    if (getenv("NEONFALL_LIT"))
+        skel_draw(&rig, Z_PLAY);
+    else
+        skel_draw_silhouette(&rig, Z_PLAY,
+                             rgba(0.055f, 0.065f, 0.115f, 1.0f),
+                             rgba(0.30f, 0.85f, 1.0f, 0.30f), 0.045f);
 
     if (pl.attack_t > 0.0f) {
         float t = 1.0f - (pl.attack_t / 0.24f);

@@ -30,6 +30,7 @@ typedef struct {
     float root_x, root_y;     /* hip position in world space */
     int   facing;
     float alpha;
+    Color tint;               /* multiplied into every part */
 } Rig;
 
 /* Load the player rig from assets/player/player-NN.png. */
@@ -44,5 +45,7 @@ void skel_pose_attack(Rig *r, float t01);
 void skel_pose_dash(Rig *r);
 
 void skel_draw(const Rig *r, float z);
+/* Silhouette pass: flat dark body plus a rim of light along the lit edge. */
+void skel_draw_silhouette(const Rig *r, float z, Color body, Color rim, float rim_width);
 
 #endif
