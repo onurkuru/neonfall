@@ -128,6 +128,7 @@ static Sheet sh_drone, sh_turret, sh_cop_run, sh_cop_idle;
 static Sheet sh_shot, sh_hit, sh_boom;
 static Tex tx_slab, tx_span;
 static float world_t;
+static Color world_tint = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 static Sheet load_sheet(const char *root, const char *rel, int frames, float fps) {
     char path[512];
@@ -323,8 +324,12 @@ int world_enemies_alive(void) {
 
 /* ---------------- draw ---------------- */
 
+void world_set_tint(Color c) { world_tint = c; }
+
 static void draw_frame(Sheet s, float x, float y_bottom, float z, float scale,
                        float t, int loop, int flip, Color c) {
+    c = rgba(c.r * world_tint.r, c.g * world_tint.g,
+             c.b * world_tint.b, c.a * world_tint.a);
     if (!s.tex.id) return;
     int fw = s.tex.w / s.frames;
     int f = s.fps > 0.0f ? (int)(t * s.fps) : 0;
@@ -346,7 +351,7 @@ static void draw_props(float z_filter) {
         const Prop *p = &props[i];
         if (p->z != z_filter) continue;
         draw_frame(sh_prop[p->kind], p->x, p->y, p->z, p->scale,
-                   world_t + i * 0.37f, 1, 0, rgba(1, 1, 1, 1));
+                   world_t + i * 0.37f, 1, 0, rgba(0.85f, 0.83f, 1.0f, 1.0f));
         /* signs light their own patch of street */
         if (p->kind == PR_NEON || p->kind == PR_SUSHI || p->kind == PR_BIG ||
             p->kind == PR_LIGHT || p->kind == PR_BANNER_C || p->kind == PR_HOTEL) {
@@ -356,6 +361,9 @@ static void draw_props(float z_filter) {
             Light l = { p->x, p->y + 1.2f, p->z + 0.5f, c, 2.0f,
                         1.1f + (i % 5) * 0.4f, (float)i, (i % 4) == 0 };
             fx_light(&l, world_t);
+            float road = world_surface_under(p->x, p->y);
+            if (road > -100.0f)
+                fx_light_on_ground(&l, world_t, road, Z_PLAY - 0.2f);
         }
     }
 }
@@ -377,7 +385,9 @@ static void draw_platforms(void) {
             float w = (k == n - 1) ? (p->x + p->w - x) : tw;
             if (w <= 0.05f) break;
             rnd_quad_uv(x + w * 0.5f, p->y - th * 0.5f, Z_PLAY - 0.4f, w, th,
-                        0.0f, 0.0f, w / tw, 1.0f, rgba(1, 1, 1, 1));
+                        0.0f, 0.0f, w / tw, 1.0f,
+                        rgba(0.42f * world_tint.r, 0.40f * world_tint.g,
+                             0.60f * world_tint.b, world_tint.a));
         }
         /* a lit edge so the landing line reads at a glance */
         rnd_set_blend(BLEND_ADD);

@@ -7,6 +7,8 @@
 void world_init(const char *asset_root);
 void world_update(float dt, float px, float py, int p_facing);
 void world_draw_back(void);    /* props behind the play plane */
+/* Multiplied into every prop, platform and enemy - used by the reflection pass. */
+void world_set_tint(Color c);
 void world_draw_front(void);   /* enemies, bullets, foreground props */
 
 /* Landing test: given the player's vertical span this tick, report the surface

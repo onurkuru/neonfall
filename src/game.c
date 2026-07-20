@@ -315,16 +315,16 @@ static void draw_haze(float z, float density) {
 static void draw_background(void) {
     /* every layer is anchored by its base near the walkway line and rises
        past the top of the frame, so the city towers over the player */
-    draw_layer(tx_layer[0], Z_SKY, 30.0f, -4.0f, rgba(0.75f, 0.70f, 0.95f, 1.0f));
+    draw_layer(tx_layer[0], Z_SKY, 30.0f, -4.0f, rgba(0.34f, 0.30f, 0.52f, 1.0f));
     draw_sky_dome();
-    draw_layer(tx_layer[1], Z_L1, 24.0f, -3.0f, rgba(0.66f, 0.62f, 0.88f, 1.0f));
+    draw_layer(tx_layer[1], Z_L1, 24.0f, -3.0f, rgba(0.30f, 0.27f, 0.46f, 1.0f));
     draw_haze(Z_L1 + 8.0f, 0.26f);
-    draw_layer(tx_layer[2], Z_L2, 20.0f, -3.0f, rgba(0.80f, 0.77f, 0.96f, 1.0f));
+    draw_layer(tx_layer[2], Z_L2, 20.0f, -3.0f, rgba(0.36f, 0.33f, 0.54f, 1.0f));
     draw_haze(Z_L2 + 6.0f, 0.18f);
-    draw_layer(tx_layer[3], Z_L3, 17.0f, -3.0f, rgba(0.92f, 0.90f, 1.00f, 1.0f));
+    draw_layer(tx_layer[3], Z_L3, 17.0f, -3.0f, rgba(0.44f, 0.41f, 0.62f, 1.0f));
     draw_haze(Z_L3 + 5.0f, 0.10f);
-    draw_layer(tx_layer[4], Z_L4, 14.0f, -3.0f, rgba(1.0f, 1.0f, 1.0f, 1.0f));
-    draw_layer(tx_layer[5], Z_L5, 11.0f, -3.0f, rgba(0.34f, 0.30f, 0.52f, 1.0f));
+    draw_layer(tx_layer[4], Z_L4, 14.0f, -3.0f, rgba(0.52f, 0.49f, 0.70f, 1.0f));
+    draw_layer(tx_layer[5], Z_L5, 11.0f, -3.0f, rgba(0.16f, 0.15f, 0.30f, 1.0f));
 
     /* close the bottom of the frame: below the walkway is unlit depth */
     rnd_set_blend(BLEND_ALPHA);
@@ -337,24 +337,34 @@ static void draw_lights(void) {
         fx_light(&lights[i], clock_t_);
 }
 
-static void draw_deck(void) {
-    if (!tx_deck.id) return;
-    /* the painted walkway is sized in world units, not by pixel scale;
-       WALK_SURFACE is where the deck's top edge sits inside the texture */
-    const float tile_w = 8.0f;
-    const float tile_h = tile_w * (float)tx_deck.h / (float)tx_deck.w;
-    const float WALK_SURFACE = 0.30f;        /* 0 = texture top, 1 = bottom */
-    float y = GROUND_Y - tile_h * (0.5f - WALK_SURFACE);
 
+/* Street level is wet asphalt: a dark plane that exists to hold reflections.
+   Almost nothing is drawn here - the light lying on it is the art. */
+static void draw_street(void) {
     rnd_set_blend(BLEND_ALPHA);
-    rnd_set_tex(tx_deck);
-    float start = floorf((cam_x - 32.0f) / tile_w) * tile_w;
-    for (float x = start; x < cam_x + 32.0f; x += tile_w)
-        rnd_quad(x + tile_w * 0.5f, y, Z_DECK, tile_w, tile_h, rgba(1, 1, 1, 1));
+    rnd_set_tex(tx_white);
 
-    /* every neon source throws a pool onto the wet walkway */
+    /* the road itself, darkening as it runs away from the kerb */
+    for (int i = 0; i < 8; i++) {
+        float t = i / 7.0f;
+        rnd_quad(cam_x, GROUND_Y - 0.6f - i * 1.5f, Z_DECK, 260.0f, 1.6f,
+                 rgba(lerpf(0.055f, 0.015f, t),
+                      lerpf(0.060f, 0.018f, t),
+                      lerpf(0.110f, 0.038f, t), 1.0f));
+    }
+    /* kerb: the one hard line that tells you where the ground is */
+    rnd_quad(cam_x, GROUND_Y + 0.03f, Z_DECK, 260.0f, 0.07f,
+             rgba(0.16f, 0.24f, 0.42f, 0.45f));
+
+    /* every neon source lays a pool and a long streak on the wet road */
     for (int i = 0; i < NUM_LIGHTS; i++)
         fx_light_on_ground(&lights[i], clock_t_, GROUND_Y, Z_DECK + 0.4f);
+
+    /* standing water catching the sky */
+    rnd_set_blend(BLEND_ADD);
+    rnd_set_tex(tx_white);
+    rnd_quad(cam_x, GROUND_Y - 0.9f, Z_DECK + 0.3f, 260.0f, 1.8f,
+             rgba(0.07f, 0.14f, 0.30f, 0.35f));
 }
 
 static const Anim *player_anim(void) {
@@ -409,19 +419,33 @@ static void draw_player(void) {
    composite it additively as light sitting on wet metal. One mirror flag, and
    anything that can be drawn reflects for free. */
 static void draw_reflections(void) {
-    rnd_set_mirror(1, GROUND_Y, 0.34f);
+    rnd_set_mirror(1, GROUND_Y, 0.95f);
+
+    /* signs, platforms and enemies stand above the road, so they mirror into
+       it cleanly - the city layers do not, they straddle the waterline */
+    world_set_tint(rgba(0.42f, 0.46f, 0.70f, 0.55f));
+    world_draw_back();
+    world_draw_front();
+    world_set_tint(rgba(1, 1, 1, 1));
 
     for (int i = 0; i < NUM_LIGHTS; i++) {
         Light l = lights[i];
-        l.color.a *= 0.55f;
+        l.color.a *= 0.85f;
         l.z = Z_DECK + 0.5f;
         l.flare = 0;
         fx_light(&l, clock_t_);
     }
 
-    draw_player_frame(Z_DECK + 0.6f, rgba(0.34f, 0.55f, 0.85f, 0.28f));
+    draw_player_frame(Z_DECK + 0.6f, rgba(0.40f, 0.62f, 0.95f, 0.42f));
 
     rnd_set_mirror(0, 0.0f, 1.0f);
+
+    /* the reflection dies out with depth into the water */
+    rnd_set_blend(BLEND_ALPHA);
+    rnd_set_tex(tx_white);
+    for (int i = 0; i < 8; i++)
+        rnd_quad(cam_x, GROUND_Y - 0.9f - i * 1.4f, Z_DECK + 0.7f, 260.0f, 1.5f,
+                 rgba(0.015f, 0.018f, 0.040f, 0.10f + i * 0.11f));
 }
 
 static void draw_hud(void) {
@@ -451,9 +475,9 @@ void game_draw(void) {
     rnd_camera(cam_x, cam_y, sh);
 
     draw_background();
-    fx_draw_rain_far();
     draw_lights();
-    draw_deck();
+    fx_draw_rain_far();
+    draw_street();
     world_draw_back();
     fx_draw_steam();
     world_draw_front();

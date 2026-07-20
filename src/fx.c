@@ -5,8 +5,8 @@
 #include <string.h>
 #include "fx.h"
 
-#define NUM_DROPS_FAR   140
-#define NUM_DROPS_NEAR   70
+#define NUM_DROPS_FAR   260
+#define NUM_DROPS_NEAR  130
 #define NUM_SPLASH       48
 #define NUM_STEAM        18
 
@@ -54,14 +54,14 @@ void fx_init(const char *root) {
         d->x = frand(-60.0f, 60.0f); d->y = frand(-6.0f, 34.0f);
         d->z = Z_RAIN_FAR + frand(-12.0f, 12.0f);
         d->len = frand(1.1f, 2.4f); d->speed = frand(30.0f, 44.0f);
-        d->alpha = frand(0.16f, 0.30f);
+        d->alpha = frand(0.22f, 0.42f);
     }
     for (int i = 0; i < NUM_DROPS_NEAR; i++) {
         Drop *d = &drops_near[i];
         d->x = frand(-30.0f, 30.0f); d->y = frand(-6.0f, 26.0f);
         d->z = Z_RAIN_NEAR + frand(-2.0f, 5.0f);
         d->len = frand(2.2f, 4.5f); d->speed = frand(52.0f, 78.0f);
-        d->alpha = frand(0.26f, 0.48f);
+        d->alpha = frand(0.34f, 0.62f);
     }
     for (int i = 0; i < NUM_STEAM; i++) {
         Steam *s = &steam[i];
@@ -124,7 +124,7 @@ static void draw_drops(const Drop *d, int n, float w_scale) {
     rnd_set_tex(tx_rain);
     for (int i = 0; i < n; i++)
         rnd_quad_rot(d[i].x, d[i].y, d[i].z,
-                     0.16f * w_scale, d[i].len, 0.14f,
+                     0.20f * w_scale, d[i].len, 0.13f,
                      rgba(0.70f, 0.84f, 1.0f, d[i].alpha));
 }
 
@@ -189,20 +189,30 @@ void fx_light_on_ground(const Light *l, float t, float ground_y, float z) {
     float a = flicker(l, t);
     float drop = l->y - ground_y;
     if (drop <= 0.0f) return;
-    /* the further the source, the wider and weaker the pool */
-    float spread = l->radius * (1.4f + drop * 0.16f);
-    float fade = clampf(1.0f - drop / 22.0f, 0.0f, 1.0f);
-    float wobble = sinf(t * 2.1f + l->phase) * 0.15f;
+    float fade = clampf(1.0f - drop / 26.0f, 0.15f, 1.0f);
+    float wobble = sinf(t * 2.3f + l->phase) * 0.18f;
+    Color c = l->color;
 
     rnd_set_blend(BLEND_ADD);
+
+    /* the pool of light the source lays on the road */
     rnd_set_tex(tx_glow);
-    rnd_quad(l->x + wobble, ground_y - 0.35f, z, spread * 2.0f, 1.6f,
-             rgba(l->color.r, l->color.g, l->color.b, a * fade * 0.22f));
-    /* a thin vertical smear reads as a reflection stretching toward you */
+    rnd_quad(l->x + wobble, ground_y - 0.2f, z,
+             l->radius * (3.0f + drop * 0.30f), 2.2f,
+             rgba(c.r, c.g, c.b, a * fade * 0.34f));
+
+    /* wet asphalt: the sign smears down toward the viewer as a long streak,
+       broken into segments that wobble independently so it reads as water */
     rnd_set_tex(tx_flare);
-    rnd_quad_rot(l->x + wobble, ground_y - 1.4f, z, 2.6f, spread * 0.9f,
-                 1.5707963f, rgba(l->color.r, l->color.g, l->color.b,
-                                  a * fade * 0.16f));
+    for (int i = 0; i < 5; i++) {
+        float depth = 0.5f + i * 1.15f;
+        float jitter = sinf(t * (2.0f + i * 0.7f) + l->phase + i) * (0.10f + i * 0.06f);
+        float w = l->radius * (1.10f + i * 0.28f);
+        float alpha = a * fade * 0.42f / (1.0f + i * 0.62f);
+        rnd_quad_rot(l->x + wobble + jitter, ground_y - depth, z,
+                     1.5f + i * 0.5f, w, 1.5707963f,
+                     rgba(c.r, c.g, c.b, alpha));
+    }
 }
 
 void fx_impact(float x, float y, float z, Color c, float t01) {
