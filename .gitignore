@@ -6,3 +6,5 @@ neonfall-dev
 
 # third-party asset packs stay local, never in the repo
 assets/vendor/
+# generated art masters live on the artist's machine, not in the repo
+assets/raw/
