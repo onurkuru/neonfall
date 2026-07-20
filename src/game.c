@@ -6,6 +6,7 @@
 #include <string.h>
 #include "neonfall.h"
 #include "fx.h"
+#include "world.h"
 
 #define GROUND_Y      0.0f
 #define GRAVITY      -58.0f
@@ -36,6 +37,7 @@ typedef struct {
     int   facing, on_ground, jumps_left;
     float coyote, buffer;
     float dash_t, dash_cd;
+    float respawn_x, respawn_y, hurt_t;
     float anim_t;
     int   anim_frame;
     float attack_t;
@@ -105,6 +107,7 @@ void game_init(void) {
     an_jump  = (Anim){ load("player/jump.png", 0),  5, 10.0f };
     an_shoot = (Anim){ load("player/shoot.png", 0), 1, 12.0f };
     fx_init(asset_root());
+    world_init(asset_root());
 
     for (int i = 0; i < NUM_LIGHTS; i++) {
         Light *l = &lights[i];
@@ -138,6 +141,7 @@ static void update_player(const Input *in, float dt) {
     if ((in->attack || in->fire) && pl.attack_t <= 0.0f) {
         pl.attack_t = 0.24f;
         pl.energy = clampf(pl.energy + 0.05f, 0.0f, 1.0f);
+        world_player_shoot(pl.x, pl.y + 1.05f, pl.facing);
     }
 
     if (pl.dash_t > 0.0f) {
@@ -171,12 +175,14 @@ static void update_player(const Input *in, float dt) {
     }
     if (!in->jump_held && pl.vy > 0.0f) pl.vy -= pl.vy * 6.0f * dt;
 
+    float y_prev = pl.y;
     pl.x += pl.vx * dt;
     pl.y += pl.vy * dt;
 
-    if (pl.y <= GROUND_Y) {
+    float surface;
+    if (pl.vy <= 0.0f && world_land(pl.x, y_prev, pl.y, &surface)) {
         if (!pl.on_ground && pl.vy < -18.0f) shake = 0.10f;
-        pl.y = GROUND_Y;
+        pl.y = surface;
         pl.vy = 0.0f;
         pl.on_ground = 1;
         pl.jumps_left = 2;
@@ -185,8 +191,38 @@ static void update_player(const Input *in, float dt) {
         pl.on_ground = 0;
     }
 
-    if (pl.x < -140.0f) pl.x = -140.0f;
-    if (pl.x >  160.0f) pl.x =  160.0f;
+    /* fall off the street and you go back to the last safe ledge */
+    if (pl.y < -14.0f) {
+        pl.x = pl.respawn_x;
+        pl.y = pl.respawn_y;
+        pl.vx = pl.vy = 0.0f;
+        pl.hp--;
+        pl.hurt_t = 0.9f;
+        shake = 0.3f;
+    } else if (pl.on_ground) {
+        pl.respawn_x = pl.x;
+        pl.respawn_y = pl.y;
+    }
+
+    if (pl.hurt_t > 0.0f) pl.hurt_t -= dt;
+    else {
+        int dmg = world_take_player_damage(pl.x, pl.y);
+        if (dmg) {
+            pl.hp -= dmg;
+            pl.hurt_t = 0.8f;
+            shake = 0.22f;
+            pl.vx -= pl.facing * 6.0f;
+        }
+    }
+    if (pl.hp <= 0) {
+        pl.hp = pl.hp_max;
+        pl.x = pl.respawn_x; pl.y = pl.respawn_y;
+        pl.vx = pl.vy = 0.0f;
+        pl.hurt_t = 1.2f;
+    }
+
+    if (pl.x < world_left_bound())  pl.x = world_left_bound();
+    if (pl.x > world_right_bound()) pl.x = world_right_bound();
 
     const Anim *a = !pl.on_ground ? &an_jump
                   : (pl.attack_t > 0.0f ? &an_shoot
@@ -215,6 +251,7 @@ void game_update(const Input *in, float dt) {
 
     if (shake > 0.0f) shake = clampf(shake - dt * 0.9f, 0.0f, 1.0f);
 
+    world_update(dt, pl.x, pl.y, pl.facing);
     fx_update(dt, cam_x, cam_y, GROUND_Y);
 }
 
@@ -356,7 +393,10 @@ static void draw_player(void) {
         }
     }
 
-    draw_player_frame(Z_PLAY, rgba(1, 1, 1, 1));
+    Color body = rgba(1, 1, 1, 1);
+    if (pl.hurt_t > 0.0f && fmodf(pl.hurt_t, 0.16f) > 0.08f)
+        body = rgba(1.0f, 0.45f, 0.45f, 0.75f);
+    draw_player_frame(Z_PLAY, body);
 
     if (pl.attack_t > 0.0f) {
         float t = 1.0f - (pl.attack_t / 0.24f);
@@ -414,7 +454,9 @@ void game_draw(void) {
     fx_draw_rain_far();
     draw_lights();
     draw_deck();
+    world_draw_back();
     fx_draw_steam();
+    world_draw_front();
     draw_player();
     draw_reflections();
     fx_draw_splashes();

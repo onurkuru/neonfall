@@ -18,6 +18,7 @@ set(SRC
   src/render.c
   src/batch.c
   src/fx.c
+  src/world.c
 )
 
 if(BUILD_VITA)
