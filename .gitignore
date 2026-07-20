@@ -1,0 +1,5 @@
+build/
+build-vita/
+*.o
+neonfall-dev
+.DS_Store
