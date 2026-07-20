@@ -60,6 +60,15 @@ the cut-out sheets into individual parts, and writes `assets/parts.json`:
 python3 tools/ingest.py all      # or: layers | parts | vfx
 ```
 
+Third-party packs downloaded as `.unitypackage` can be unpacked with:
+
+```sh
+python3 tools/unitypackage.py pack.unitypackage assets/vendor/pack --flat
+```
+
+`assets/vendor/` is git-ignored: packs whose licence does not allow
+redistribution must stay on the machine that downloaded them.
+
 The character is not animated frame by frame. Painted body parts are driven by
 a bone hierarchy in `src/skel.c`, and the poses (idle, run, air, attack, dash)
 are generated procedurally, so the run cycle stays in step with actual speed.

@@ -3,3 +3,6 @@ build-vita/
 *.o
 neonfall-dev
 .DS_Store
+
+# third-party asset packs stay local, never in the repo
+assets/vendor/
