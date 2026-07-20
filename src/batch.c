@@ -17,6 +17,9 @@ static int     count;
 static GLuint  cur_tex;
 static BlendMode cur_blend = BLEND_ALPHA;
 static int     arrays_ready;
+static int     mirror_on;
+static float   mirror_y;
+static float   mirror_squash = 1.0f;
 
 static void apply_blend(BlendMode m) {
     if (m == BLEND_ADD) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -38,6 +41,13 @@ void rnd_flush(void) {
     glColorPointer(4, GL_FLOAT, sizeof(Vtx), &verts[0].r);
     glDrawArrays(GL_TRIANGLES, 0, count);
     count = 0;
+}
+
+void rnd_set_mirror(int on, float y_line, float squash) {
+    rnd_flush();
+    mirror_on = on;
+    mirror_y = y_line;
+    mirror_squash = squash;
 }
 
 void rnd_set_tex(Tex t) {
@@ -67,7 +77,10 @@ void batch_push(float x0, float y0, float x1, float y1,
 
     for (int i = 0; i < 6; i++) {
         Vtx *v = &verts[count++];
-        v->x = px[i]; v->y = py[i]; v->z = z;
+        v->x = px[i];
+        v->y = mirror_on ? (mirror_y - (py[i] - mirror_y) * mirror_squash)
+                         : py[i];
+        v->z = z;
         v->u = pu[i]; v->v = pv[i];
         v->r = c.r; v->g = c.g; v->b = c.b; v->a = c.a;
     }

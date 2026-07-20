@@ -83,6 +83,10 @@ void rnd_ui_begin(void);
 void rnd_ui_quad(float x, float y, float w, float h, Color c);
 void rnd_ui_end(void);
 void rnd_flush(void);
+/* Reflect every subsequent draw about a horizontal world line (wet ground).
+   `squash` compresses the reflection toward the line so it stays inside the
+   surface it is supposed to be lying on. */
+void rnd_set_mirror(int on, float y_line, float squash);
 
 /* ---------- game ---------- */
 

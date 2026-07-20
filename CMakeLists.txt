@@ -17,7 +17,7 @@ set(SRC
   src/game.c
   src/render.c
   src/batch.c
-  src/skel.c
+  src/fx.c
 )
 
 if(BUILD_VITA)
