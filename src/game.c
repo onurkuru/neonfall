@@ -272,22 +272,26 @@ static void draw_layer(Tex t, float z, float height_units, float y_base, Color c
     float s = depth_scale(z);
     float h = height_units * s;
     float w = h * (float)t.w / (float)t.h;
-    float view_w = VIEW_H * ((float)SCREEN_W / (float)SCREEN_H) * s;
 
-    float left = cam_x * s - view_w * 0.5f - w;
-    float start = floorf(left / w) * w;
-    float y = (y_base + height_units * 0.5f) * s + cam_y * (s - 1.0f) * 0.5f;
+    /* the frustum stays centred on the camera at every depth; it just gets
+       wider the further back you go */
+    float half_view = VIEW_H * ((float)SCREEN_W / (float)SCREEN_H) * 0.5f * s;
+    float start = floorf((cam_x - half_view - w) / w) * w;
+    float y = y_base * s + h * 0.5f;
 
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(t);
-    for (float x = start; x < cam_x * s + view_w * 0.5f + w; x += w)
-        rnd_quad(x, y, z, w, h, c);
+    for (float x = start; x < cam_x + half_view + w; x += w)
+        rnd_quad(x + w * 0.5f, y, z, w, h, c);
 }
 
 static void draw_sky(void) {
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(tx_sky);
-    rnd_quad(cam_x * 0.02f, 40.0f, Z_SKY, 1600.0f, 300.0f, rgba(1, 1, 1, 1));
+    /* the sky is a backdrop, not a place: it follows the camera outright */
+    float s = depth_scale(Z_SKY);
+    rnd_quad(cam_x, cam_y + 6.0f * s, Z_SKY,
+             VIEW_H * 2.4f * s, VIEW_H * 1.5f * s, rgba(1, 1, 1, 1));
 
     rnd_set_blend(BLEND_ADD);
     rnd_set_tex(tx_glow);
@@ -302,7 +306,7 @@ static void draw_haze(float z, float density) {
     float s = depth_scale(z);
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(tx_white);
-    rnd_quad(cam_x * s, cam_y * s, z,
+    rnd_quad(cam_x, cam_y, z,
              VIEW_H * 2.2f * s, VIEW_H * 1.6f * s,
              rgba(0.13f, 0.07f, 0.22f, density));
 }

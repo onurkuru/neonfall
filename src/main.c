@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
     const char *shot_at = getenv("NEONFALL_SHOT_FRAME");
     long shot_frame = shot_at ? atol(shot_at) : 120;
     long frame_no = 0;
+    int demo = getenv("NEONFALL_DEMO") != NULL;
 
     if (!plat_init("Neonfall")) return 1;
     rnd_init();
@@ -29,6 +30,15 @@ int main(int argc, char **argv) {
         acc += frame;
 
         plat_poll(&in);
+        if (demo) {
+            /* scripted run-and-jump so screenshots exercise the animations */
+            long t = frame_no % 240;
+            in.move = (t < 200) ? 1.0f : -1.0f;
+            in.jump_held = (t % 80) > 40 && (t % 80) < 70;
+            in.jump = (t % 80) == 41 || (t % 80) == 58;
+            in.dash = (t % 240) == 150;
+            in.attack = (t % 45) == 0;
+        }
 
         while (acc >= TICK_DT) {
             game_update(&in, TICK_DT);
