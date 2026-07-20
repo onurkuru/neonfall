@@ -22,10 +22,17 @@ void fx_draw_rain_near(void);
 void fx_draw_steam(void);
 void fx_draw_splashes(void);
 
-/* A neon source: halo, hot core, and optional lens streak. */
+/* A neon source: halo, hot core, and optional lens streak.
+   Lights are queued rather than drawn, then emitted texture by texture, so a
+   scene full of neon costs a handful of draw calls instead of four per light.
+   Additive blending is order-independent, so batching is free; call
+   fx_flush_lights() at each point in the painter's order where the lights
+   queued so far must land before whatever is drawn next. */
 void fx_light(const Light *l, float t);
+void fx_flush_lights(void);
 /* The pool of light a source throws onto the wet ground below it. */
 void fx_light_on_ground(const Light *l, float t, float ground_y, float z);
+void fx_flush_pools(float t);
 
 void fx_impact(float x, float y, float z, Color c, float t01);
 void fx_muzzle(float x, float y, float z, int facing, float t01);

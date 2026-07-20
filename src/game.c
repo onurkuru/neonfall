@@ -438,6 +438,7 @@ static void draw_reflections(void) {
 
     draw_player_frame(Z_DECK + 0.6f, rgba(0.40f, 0.62f, 0.95f, 0.42f));
 
+    fx_flush_lights();          /* reflected light, still mirrored */
     rnd_set_mirror(0, 0.0f, 1.0f);
 
     /* the reflection dies out with depth into the water */
@@ -476,12 +477,16 @@ void game_draw(void) {
 
     draw_background();
     draw_lights();
+    fx_flush_lights();          /* city neon lands before the rain in front of it */
     fx_draw_rain_far();
     draw_street();
     world_draw_back();
+    fx_flush_pools(clock_t_);
+    fx_flush_lights();          /* sign glow sits on the street, under the steam */
     fx_draw_steam();
     world_draw_front();
     draw_player();
+    fx_flush_lights();
     draw_reflections();
     fx_draw_splashes();
     fx_draw_rain_near();

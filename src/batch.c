@@ -26,8 +26,12 @@ static void apply_blend(BlendMode m) {
     else                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
+int nf_draw_calls, nf_verts_peak;
+
 void rnd_flush(void) {
     if (!count) return;
+    nf_draw_calls++;
+    if (count > nf_verts_peak) nf_verts_peak = count;
     if (!arrays_ready) {
         glEnableClientState(GL_VERTEX_ARRAY);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);

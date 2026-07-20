@@ -1,5 +1,6 @@
 /* Neonfall entry point: fixed-timestep update, uncapped draw. */
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "neonfall.h"
 
@@ -47,10 +48,15 @@ int main(int argc, char **argv) {
             in.jump = in.dash = in.attack = in.parry = 0;
         }
 
+        extern int nf_draw_calls, nf_verts_peak;
+        nf_draw_calls = 0;
         rnd_begin_frame();
         game_draw();
         rnd_end_frame();
 
+        if (getenv("NEONFALL_STATS") && (frame_no % 60) == 0)
+            fprintf(stderr, "frame %ld: %d draw calls, peak %d verts/batch\n",
+                    frame_no, nf_draw_calls, nf_verts_peak);
         if (shot && ++frame_no >= shot_frame) {
             plat_screenshot(shot);
             in.quit = 1;

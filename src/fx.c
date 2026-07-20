@@ -146,12 +146,14 @@ void fx_draw_splashes(void) {
 
 void fx_draw_steam(void) {
     rnd_set_blend(BLEND_ALPHA);
-    for (int i = 0; i < NUM_STEAM; i++) {
-        const Steam *s = &steam[i];
-        float fade = s->life * (1.0f - s->life) * 4.0f;   /* in and out */
-        rnd_set_tex((i & 1) ? tx_smoke_a : tx_smoke_b);
-        rnd_quad(s->x, s->y, s->z, s->size, s->size * 0.75f,
-                 rgba(0.42f, 0.40f, 0.62f, clampf(fade, 0.0f, 1.0f) * 0.22f));
+    for (int pass = 0; pass < 2; pass++) {
+        rnd_set_tex(pass ? tx_smoke_a : tx_smoke_b);
+        for (int i = pass; i < NUM_STEAM; i += 2) {
+            const Steam *s = &steam[i];
+            float fade = s->life * (1.0f - s->life) * 4.0f;   /* in and out */
+            rnd_quad(s->x, s->y, s->z, s->size, s->size * 0.75f,
+                     rgba(0.42f, 0.40f, 0.62f, clampf(fade, 0.0f, 1.0f) * 0.22f));
+        }
     }
 }
 
@@ -161,58 +163,107 @@ static float flicker(const Light *l, float t) {
     return a;
 }
 
+#define MAX_QUEUED_LIGHTS 128
+static Light queue[MAX_QUEUED_LIGHTS];
+static float queue_a[MAX_QUEUED_LIGHTS];
+static int   queue_n;
+
 void fx_light(const Light *l, float t) {
-    float a = flicker(l, t);
+    if (queue_n >= MAX_QUEUED_LIGHTS) {
+        fx_flush_lights();                  /* rare, but never drop a light */
+    }
+    queue[queue_n] = *l;
+    queue_a[queue_n] = flicker(l, t);
+    queue_n++;
+}
+
+void fx_flush_lights(void) {
+    if (!queue_n) return;
     rnd_set_blend(BLEND_ADD);
 
     /* wide halo */
     rnd_set_tex(tx_glow);
-    rnd_quad(l->x, l->y, l->z, l->radius * 4.0f, l->radius * 4.0f,
-             rgba(l->color.r, l->color.g, l->color.b, a * 0.26f * l->color.a));
+    for (int i = 0; i < queue_n; i++) {
+        const Light *l = &queue[i];
+        rnd_quad(l->x, l->y, l->z, l->radius * 4.0f, l->radius * 4.0f,
+                 rgba(l->color.r, l->color.g, l->color.b,
+                      queue_a[i] * 0.26f * l->color.a));
+    }
     /* tighter falloff so the source has a hot centre */
     rnd_set_tex(tx_lamp);
-    rnd_quad(l->x, l->y, l->z, l->radius * 1.8f, l->radius * 1.8f,
-             rgba(l->color.r, l->color.g, l->color.b, a * 0.34f * l->color.a));
+    for (int i = 0; i < queue_n; i++) {
+        const Light *l = &queue[i];
+        rnd_quad(l->x, l->y, l->z, l->radius * 1.8f, l->radius * 1.8f,
+                 rgba(l->color.r, l->color.g, l->color.b,
+                      queue_a[i] * 0.34f * l->color.a));
+    }
     /* core */
     rnd_set_tex(tx_star);
-    rnd_quad(l->x, l->y, l->z, l->radius * 1.1f, l->radius * 1.1f,
-             rgba(1.0f, 1.0f, 1.0f, a * 0.30f * l->color.a));
-
-    if (l->flare) {
-        rnd_set_tex(tx_flare);
-        rnd_quad(l->x, l->y, l->z, l->radius * 9.0f, l->radius * 1.2f,
-                 rgba(l->color.r, l->color.g, l->color.b, a * 0.20f * l->color.a));
+    for (int i = 0; i < queue_n; i++) {
+        const Light *l = &queue[i];
+        rnd_quad(l->x, l->y, l->z, l->radius * 1.1f, l->radius * 1.1f,
+                 rgba(1.0f, 1.0f, 1.0f, queue_a[i] * 0.30f * l->color.a));
     }
+    rnd_set_tex(tx_flare);
+    for (int i = 0; i < queue_n; i++) {
+        const Light *l = &queue[i];
+        if (!l->flare) continue;
+        rnd_quad(l->x, l->y, l->z, l->radius * 9.0f, l->radius * 1.2f,
+                 rgba(l->color.r, l->color.g, l->color.b,
+                      queue_a[i] * 0.20f * l->color.a));
+    }
+    queue_n = 0;
 }
 
-void fx_light_on_ground(const Light *l, float t, float ground_y, float z) {
-    float a = flicker(l, t);
-    float drop = l->y - ground_y;
-    if (drop <= 0.0f) return;
-    float fade = clampf(1.0f - drop / 26.0f, 0.15f, 1.0f);
-    float wobble = sinf(t * 2.3f + l->phase) * 0.18f;
-    Color c = l->color;
+#define MAX_POOLS 64
+static Light pools[MAX_POOLS];
+static float pool_a[MAX_POOLS], pool_ground[MAX_POOLS], pool_z[MAX_POOLS];
+static int   pool_n;
 
+void fx_light_on_ground(const Light *l, float t, float ground_y, float z) {
+    if (l->y - ground_y <= 0.0f || pool_n >= MAX_POOLS) return;
+    pools[pool_n] = *l;
+    pool_a[pool_n] = flicker(l, t);
+    pool_ground[pool_n] = ground_y;
+    pool_z[pool_n] = z;
+    pool_n++;
+}
+
+/* Emit every queued pool: the disc of light on the road, then the chain of
+   vertical smears that makes it read as water rather than a mirror. */
+void fx_flush_pools(float t) {
+    if (!pool_n) return;
     rnd_set_blend(BLEND_ADD);
 
-    /* the pool of light the source lays on the road */
     rnd_set_tex(tx_glow);
-    rnd_quad(l->x + wobble, ground_y - 0.2f, z,
-             l->radius * (3.0f + drop * 0.30f), 2.2f,
-             rgba(c.r, c.g, c.b, a * fade * 0.34f));
-
-    /* wet asphalt: the sign smears down toward the viewer as a long streak,
-       broken into segments that wobble independently so it reads as water */
-    rnd_set_tex(tx_flare);
-    for (int i = 0; i < 5; i++) {
-        float depth = 0.5f + i * 1.15f;
-        float jitter = sinf(t * (2.0f + i * 0.7f) + l->phase + i) * (0.10f + i * 0.06f);
-        float w = l->radius * (1.10f + i * 0.28f);
-        float alpha = a * fade * 0.42f / (1.0f + i * 0.62f);
-        rnd_quad_rot(l->x + wobble + jitter, ground_y - depth, z,
-                     1.5f + i * 0.5f, w, 1.5707963f,
-                     rgba(c.r, c.g, c.b, alpha));
+    for (int i = 0; i < pool_n; i++) {
+        const Light *l = &pools[i];
+        float drop = l->y - pool_ground[i];
+        float fade = clampf(1.0f - drop / 26.0f, 0.15f, 1.0f);
+        float wobble = sinf(t * 2.3f + l->phase) * 0.18f;
+        rnd_quad(l->x + wobble, pool_ground[i] - 0.2f, pool_z[i],
+                 l->radius * (3.0f + drop * 0.30f), 2.2f,
+                 rgba(l->color.r, l->color.g, l->color.b, pool_a[i] * fade * 0.34f));
     }
+
+    rnd_set_tex(tx_flare);
+    for (int i = 0; i < pool_n; i++) {
+        const Light *l = &pools[i];
+        float drop = l->y - pool_ground[i];
+        float fade = clampf(1.0f - drop / 26.0f, 0.15f, 1.0f);
+        float wobble = sinf(t * 2.3f + l->phase) * 0.18f;
+        for (int k = 0; k < 5; k++) {
+            float depth = 0.5f + k * 1.15f;
+            float jitter = sinf(t * (2.0f + k * 0.7f) + l->phase + k)
+                         * (0.10f + k * 0.06f);
+            float w = l->radius * (1.10f + k * 0.28f);
+            float alpha = pool_a[i] * fade * 0.42f / (1.0f + k * 0.62f);
+            rnd_quad_rot(l->x + wobble + jitter, pool_ground[i] - depth, pool_z[i],
+                         1.5f + k * 0.5f, w, 1.5707963f,
+                         rgba(l->color.r, l->color.g, l->color.b, alpha));
+        }
+    }
+    pool_n = 0;
 }
 
 void fx_impact(float x, float y, float z, Color c, float t01) {
