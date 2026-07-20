@@ -7,6 +7,7 @@
 #include "neonfall.h"
 #include "fx.h"
 #include "world.h"
+#include "city.h"
 
 #define GROUND_Y      0.0f
 #define GRAVITY      -58.0f
@@ -54,7 +55,7 @@ static Tex tx_white;
 static Tex tx_layer[6];
 static Tex tx_deck;
 typedef struct { Tex tex; int frames; float fps; } Anim;
-static Anim an_idle, an_run, an_jump, an_shoot;
+static Anim an_idle, an_walk, an_run, an_jump, an_shoot, an_hurt, an_crouch;
 
 
 #define NUM_LIGHTS 18
@@ -106,8 +107,12 @@ void game_init(void) {
     an_run   = (Anim){ load("player/run.png", 0),   8, 14.0f };
     an_jump  = (Anim){ load("player/jump.png", 0),  5, 10.0f };
     an_shoot = (Anim){ load("player/shoot.png", 0), 1, 12.0f };
+    an_walk  = (Anim){ load("player/walk.png", 0),  16, 12.0f };
+    an_hurt  = (Anim){ load("player/hurt.png", 0),   1, 8.0f  };
+    an_crouch= (Anim){ load("player/crouch.png", 0), 1, 8.0f  };
     fx_init(asset_root());
     world_init(asset_root());
+    city_init(asset_root());
 
     for (int i = 0; i < NUM_LIGHTS; i++) {
         Light *l = &lights[i];
@@ -124,6 +129,16 @@ void game_init(void) {
         l->phase = nf_randf(&rng_state) * 6.28f;
         l->flare = (i % 4) == 0;
     }
+}
+
+static const Anim *player_anim(void) {
+    if (!pl.on_ground)        return &an_jump;
+    if (pl.hurt_t > 0.55f)    return &an_hurt;
+    if (pl.attack_t > 0.0f)   return &an_shoot;
+    float sp = fabsf(pl.vx);
+    if (sp > RUN_SPEED * 0.55f) return &an_run;
+    if (sp > 0.6f)              return &an_walk;
+    return &an_idle;
 }
 
 /* ---------------- update ---------------- */
@@ -224,9 +239,7 @@ static void update_player(const Input *in, float dt) {
     if (pl.x < world_left_bound())  pl.x = world_left_bound();
     if (pl.x > world_right_bound()) pl.x = world_right_bound();
 
-    const Anim *a = !pl.on_ground ? &an_jump
-                  : (pl.attack_t > 0.0f ? &an_shoot
-                  : (fabsf(pl.vx) > 0.6f ? &an_run : &an_idle));
+    const Anim *a = player_anim();
     pl.anim_t += dt * a->fps;
     if (!pl.on_ground) {
         int f = (int)pl.anim_t;                     /* hold the apex frame */
@@ -252,6 +265,7 @@ void game_update(const Input *in, float dt) {
     if (shake > 0.0f) shake = clampf(shake - dt * 0.9f, 0.0f, 1.0f);
 
     world_update(dt, pl.x, pl.y, pl.facing);
+    city_update(dt, cam_x);
     fx_update(dt, cam_x, cam_y, GROUND_Y);
 }
 
@@ -321,6 +335,7 @@ static void draw_background(void) {
     draw_haze(Z_L1 + 8.0f, 0.26f);
     draw_layer(tx_layer[2], Z_L2, 20.0f, -3.0f, rgba(0.36f, 0.33f, 0.54f, 1.0f));
     draw_haze(Z_L2 + 6.0f, 0.18f);
+    city_draw_traffic();
     draw_layer(tx_layer[3], Z_L3, 17.0f, -3.0f, rgba(0.44f, 0.41f, 0.62f, 1.0f));
     draw_haze(Z_L3 + 5.0f, 0.10f);
     draw_layer(tx_layer[4], Z_L4, 14.0f, -3.0f, rgba(0.52f, 0.49f, 0.70f, 1.0f));
@@ -367,11 +382,6 @@ static void draw_street(void) {
              rgba(0.07f, 0.14f, 0.30f, 0.35f));
 }
 
-static const Anim *player_anim(void) {
-    return !pl.on_ground ? &an_jump
-         : (pl.attack_t > 0.0f ? &an_shoot
-         : (fabsf(pl.vx) > 0.6f ? &an_run : &an_idle));
-}
 
 /* Draw the current frame; `tint` lets the reflection pass reuse this. */
 static void draw_player_frame(float z, Color tint) {
@@ -449,24 +459,51 @@ static void draw_reflections(void) {
                  rgba(0.015f, 0.018f, 0.040f, 0.10f + i * 0.11f));
 }
 
-static void draw_hud(void) {
+/* Screen-space finish: the letterbox, the vignette and a HUD that stays out
+   of the way. Anything here is drawn in pixels, not world units. */
+static void draw_post(void) {
+    const float bar = SCREEN_H * 0.075f;
+
     rnd_ui_begin();
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(tx_white);
 
-    for (int i = 0; i < pl.hp_max; i++)
-        rnd_ui_quad(30.0f + i * 17.0f, 44.0f, 13.0f, 6.0f,
-                    i < pl.hp ? rgba(0.30f, 0.91f, 1.0f, 0.95f)
-                              : rgba(0.30f, 0.91f, 1.0f, 0.14f));
+    /* vignette: stacked strips rather than a texture, so it costs one batch */
+    for (int i = 0; i < 10; i++) {
+        float a = 0.055f * (i + 1) * 0.5f;
+        float t = (float)i * 7.0f;
+        rnd_ui_quad(0, bar + t, SCREEN_W, 7.0f, rgba(0.01f, 0.012f, 0.03f, a * 0.5f));
+        rnd_ui_quad(0, SCREEN_H - bar - t - 7.0f, SCREEN_W, 7.0f,
+                    rgba(0.01f, 0.012f, 0.03f, a));
+        rnd_ui_quad(t, 0, 7.0f, SCREEN_H, rgba(0.01f, 0.012f, 0.03f, a * 0.45f));
+        rnd_ui_quad(SCREEN_W - t - 7.0f, 0, 7.0f, SCREEN_H,
+                    rgba(0.01f, 0.012f, 0.03f, a * 0.45f));
+    }
 
-    rnd_ui_quad(30.0f, 58.0f, 160.0f, 3.0f, rgba(1.0f, 0.30f, 0.85f, 0.16f));
-    rnd_ui_quad(30.0f, 58.0f, 160.0f * pl.energy, 3.0f, rgba(1.0f, 0.30f, 0.85f, 0.95f));
+    /* cinematic bars, opaque so they also hide anything the camera overshoots */
+    rnd_ui_quad(0, 0, SCREEN_W, bar, rgba(0.0f, 0.0f, 0.0f, 1.0f));
+    rnd_ui_quad(0, SCREEN_H - bar, SCREEN_W, bar, rgba(0.0f, 0.0f, 0.0f, 1.0f));
 
+    /* health: thin ticks that read at a glance and vanish into the frame */
+    float hx = 26.0f, hy = bar + 16.0f;
+    for (int i = 0; i < pl.hp_max; i++) {
+        int on = i < pl.hp;
+        rnd_ui_quad(hx + i * 9.0f, hy, 5.0f, on ? 10.0f : 4.0f,
+                    on ? rgba(0.35f, 0.93f, 1.0f, 0.92f)
+                       : rgba(0.35f, 0.93f, 1.0f, 0.13f));
+    }
+    /* energy hairline under it */
+    rnd_ui_quad(hx, hy + 15.0f, 96.0f, 2.0f, rgba(1.0f, 0.32f, 0.85f, 0.14f));
+    rnd_ui_quad(hx, hy + 15.0f, 96.0f * pl.energy, 2.0f,
+                rgba(1.0f, 0.32f, 0.85f, 0.9f));
+
+    /* dash readiness, mirrored to the other corner */
     float cd = 1.0f - clampf(pl.dash_cd / DASH_COOLDOWN, 0.0f, 1.0f);
-    rnd_ui_quad(SCREEN_W - 100.0f, SCREEN_H - 46.0f, 70.0f, 3.0f,
-                rgba(0.30f, 0.91f, 1.0f, 0.16f));
-    rnd_ui_quad(SCREEN_W - 100.0f, SCREEN_H - 46.0f, 70.0f * cd, 3.0f,
-                rgba(0.30f, 0.91f, 1.0f, 0.9f));
+    rnd_ui_quad(SCREEN_W - 26.0f - 64.0f, SCREEN_H - bar - 22.0f, 64.0f, 2.0f,
+                rgba(0.35f, 0.93f, 1.0f, 0.14f));
+    rnd_ui_quad(SCREEN_W - 26.0f - 64.0f, SCREEN_H - bar - 22.0f, 64.0f * cd, 2.0f,
+                rgba(0.35f, 0.93f, 1.0f, 0.85f));
+
     rnd_ui_end();
 }
 
@@ -480,6 +517,7 @@ void game_draw(void) {
     fx_flush_lights();          /* city neon lands before the rain in front of it */
     fx_draw_rain_far();
     draw_street();
+    city_draw_crowd();
     world_draw_back();
     fx_flush_pools(clock_t_);
     fx_flush_lights();          /* sign glow sits on the street, under the steam */
@@ -490,5 +528,5 @@ void game_draw(void) {
     draw_reflections();
     fx_draw_splashes();
     fx_draw_rain_near();
-    draw_hud();
+    draw_post();
 }

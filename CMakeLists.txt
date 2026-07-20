@@ -19,6 +19,7 @@ set(SRC
   src/batch.c
   src/fx.c
   src/world.c
+  src/city.c
 )
 
 if(BUILD_VITA)
