@@ -233,6 +233,23 @@ static void perspective(float fovy_deg, float aspect, float znear, float zfar) {
     glLoadMatrixf(m);
 }
 
+/* Fit the 960x544 game frame inside whatever the window actually is, keeping
+   its aspect and bordering the rest, so nothing stretches or falls off. */
+void rnd_resize(int win_w, int win_h) {
+    if (win_w <= 0 || win_h <= 0) return;
+    float want = (float)SCREEN_W / (float)SCREEN_H;
+    float have = (float)win_w / (float)win_h;
+    int vw = win_w, vh = win_h, vx = 0, vy = 0;
+    if (have > want) {
+        vw = (int)(win_h * want + 0.5f);
+        vx = (win_w - vw) / 2;
+    } else {
+        vh = (int)(win_w / want + 0.5f);
+        vy = (win_h - vh) / 2;
+    }
+    glViewport(vx, vy, vw, vh);
+}
+
 int rnd_init(void) {
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -240,7 +257,9 @@ int rnd_init(void) {
     glEnable(GL_BLEND);
     glEnable(GL_TEXTURE_2D);
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glViewport(0, 0, SCREEN_W, SCREEN_H);
+    int dw = SCREEN_W, dh = SCREEN_H;
+    plat_drawable(&dw, &dh);
+    rnd_resize(dw, dh);
     return 1;
 }
 

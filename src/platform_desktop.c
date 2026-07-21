@@ -22,8 +22,12 @@ int plat_init(const char *title) {
     if (s) scale = SDL_atoi(s);
     if (scale < 1 || scale > 4) scale = 1;
 
+    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI |
+                   SDL_WINDOW_RESIZABLE;
+    if (SDL_getenv("NEONFALL_FULLSCREEN")) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+
     win = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                           SCREEN_W * scale, SCREEN_H * scale, SDL_WINDOW_OPENGL);
+                           SCREEN_W * scale, SCREEN_H * scale, flags);
     if (!win) {
         fprintf(stderr, "CreateWindow: %s\n", SDL_GetError());
         return 0;
@@ -51,6 +55,17 @@ void plat_poll(Input *in) {
     while (SDL_PollEvent(&ev)) {
         if (ev.type == SDL_QUIT) in->quit = 1;
         if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_ESCAPE) in->quit = 1;
+        if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_f) {
+            Uint32 f = SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN_DESKTOP;
+            SDL_SetWindowFullscreen(win, f ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+        }
+        if (ev.type == SDL_WINDOWEVENT &&
+            (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+             ev.window.event == SDL_WINDOWEVENT_RESIZED)) {
+            int w, h;
+            SDL_GL_GetDrawableSize(win, &w, &h);
+            rnd_resize(w, h);
+        }
     }
     const Uint8 *k = SDL_GetKeyboardState(NULL);
     SDL_GameController *pad = SDL_GameControllerFromInstanceID(0);
@@ -86,6 +101,8 @@ void plat_poll(Input *in) {
     in->parry  = parry  && !prev_parry;
     prev_jump = jump; prev_dash = dash; prev_attack = attack; prev_parry = parry;
 }
+
+void plat_drawable(int *w, int *h) { SDL_GL_GetDrawableSize(win, w, h); }
 
 void plat_swap(void) { SDL_GL_SwapWindow(win); }
 

@@ -54,6 +54,8 @@ void plat_swap(void) { vglSwapBuffers(GL_FALSE); }
 
 void plat_screenshot(const char *path) { (void)path; }
 
+void plat_drawable(int *w, int *h) { *w = SCREEN_W; *h = SCREEN_H; }
+
 double plat_time(void) {
     SceRtcTick t;
     sceRtcGetCurrentTick(&t);

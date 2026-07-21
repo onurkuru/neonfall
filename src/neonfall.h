@@ -33,6 +33,9 @@ void plat_swap(void);
 void plat_shutdown(void);
 double plat_time(void);   /* seconds */
 void plat_screenshot(const char *path);
+/* Size of the actual GL drawable, which is not the game's 960x544 when the
+   window is scaled, resized or on a high-DPI display. */
+void plat_drawable(int *w, int *h);
 
 /* ---------- textures ---------- */
 
@@ -59,6 +62,7 @@ Tex tex_blob(int size);
 typedef struct { float r, g, b, a; } Color;
 
 int  rnd_init(void);
+void rnd_resize(int win_w, int win_h);
 void rnd_begin_frame(void);
 void rnd_end_frame(void);
 

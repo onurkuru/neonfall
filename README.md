@@ -37,12 +37,15 @@ cmake --build build-vita --target neonfall.vpk-vpk
 | Fire | L / V | R |
 | Parry | Ctrl / K | L |
 | Quit | Esc | Start + Select |
+| Fullscreen | F | - |
 
 ## Development helpers
 
 | Variable | Effect |
 |---|---|
 | `NEONFALL_SCALE=2` | Desktop window scale (1-4) |
+| `NEONFALL_FULLSCREEN=1` | Start fullscreen (F toggles it at any time) |
+| `NEONFALL_STATS=1` | Report draw calls every 60 frames |
 | `NEONFALL_SHOT=path.bmp` | Capture a frame and exit |
 | `NEONFALL_SHOT_FRAME=n` | Which frame to capture (default 120) |
 | `NEONFALL_ASSETS=dir` | Asset root (default `assets`) |
