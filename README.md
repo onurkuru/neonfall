@@ -32,6 +32,7 @@ cmake --build build-vita --target neonfall.vpk-vpk
 |---|---|---|
 | Move | Arrows / A D | Left stick, D-pad |
 | Jump (double) | Space / Z | Cross |
+| Crouch / take cover | Down / S | D-pad down |
 | Dash | Shift / C | Circle |
 | Attack | X / J | Square |
 | Fire | L / V | R |

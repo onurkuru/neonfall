@@ -23,6 +23,8 @@
 /* The sprite is 2.88 units of character in a 4.19 unit frame; the gun sits
    just above two thirds of the way up. */
 #define GUN_HEIGHT    1.95f
+#define CROUCH_GUN    0.85f
+#define chest_height() (pl.crouch ? CROUCH_GUN : GUN_HEIGHT)
 
 
 /* depth planes: negative is away from the camera */
@@ -42,6 +44,7 @@ typedef struct {
     float coyote, buffer;
     float dash_t, dash_cd;
     float respawn_x, respawn_y, hurt_t;
+    int   crouch;
     float anim_t;
     int   anim_frame;
     float attack_t;
@@ -136,6 +139,7 @@ void game_init(void) {
 
 static const Anim *player_anim(void) {
     if (!pl.on_ground)        return &an_jump;
+    if (pl.crouch)            return &an_crouch;
     if (pl.hurt_t > 0.55f)    return &an_hurt;
     if (pl.attack_t > 0.0f)   return &an_shoot;
     float sp = fabsf(pl.vx);
@@ -159,8 +163,12 @@ static void update_player(const Input *in, float dt) {
     if ((in->attack || in->fire) && pl.attack_t <= 0.0f) {
         pl.attack_t = 0.24f;
         pl.energy = clampf(pl.energy + 0.05f, 0.0f, 1.0f);
-        world_player_shoot(pl.x, pl.y + GUN_HEIGHT, pl.facing);
+        world_player_shoot(pl.x, pl.y + chest_height(), pl.facing);
     }
+
+    /* Crouching drops you under the cover line: you cannot be hit over a
+       crate, but you cannot shoot over it either. */
+    pl.crouch = pl.on_ground && in->down && pl.dash_t <= 0.0f;
 
     if (pl.dash_t > 0.0f) {
         pl.dash_t -= dt;
@@ -168,7 +176,7 @@ static void update_player(const Input *in, float dt) {
         pl.vy = 0.0f;
     } else {
         if (in->move != 0.0f) {
-            float target = in->move * RUN_SPEED;
+            float target = in->move * (pl.crouch ? RUN_SPEED * 0.28f : RUN_SPEED);
             pl.vx += (target - pl.vx) * clampf(ACCEL * dt / RUN_SPEED, 0.0f, 1.0f);
             pl.facing = in->move > 0 ? 1 : -1;
         } else {
@@ -224,6 +232,9 @@ static void update_player(const Input *in, float dt) {
 
     if (pl.hurt_t > 0.0f) pl.hurt_t -= dt;
     else {
+        /* No special case for crouching: the enemy aims at whatever chest
+           height you are presenting, and the crate stops the bullet or it
+           does not. Ducking in the open still gets you shot. */
         int dmg = world_take_player_damage(pl.x, pl.y);
         if (dmg) {
             pl.hp -= dmg;
@@ -267,7 +278,7 @@ void game_update(const Input *in, float dt) {
 
     if (shake > 0.0f) shake = clampf(shake - dt * 0.9f, 0.0f, 1.0f);
 
-    world_update(dt, pl.x, pl.y, pl.facing);
+    world_update(dt, pl.x, pl.y, pl.facing, pl.y + chest_height());
     city_update(dt, cam_x);
     fx_update(dt, cam_x, cam_y, GROUND_Y);
 }
@@ -439,7 +450,7 @@ static void draw_player(void) {
 
     if (pl.attack_t > 0.0f) {
         float t = 1.0f - (pl.attack_t / 0.24f);
-        fx_muzzle(pl.x + pl.facing * 1.0f, pl.y + GUN_HEIGHT, Z_PLAY + 0.4f,
+        fx_muzzle(pl.x + pl.facing * 1.0f, pl.y + chest_height(), Z_PLAY + 0.4f,
                   pl.facing, t);
     }
 }
@@ -516,6 +527,18 @@ static void draw_post(void) {
     rnd_ui_quad(hx, hy + 15.0f, 96.0f, 2.0f, rgba(1.0f, 0.32f, 0.85f, 0.14f));
     rnd_ui_quad(hx, hy + 15.0f, 96.0f * pl.energy, 2.0f,
                 rgba(1.0f, 0.32f, 0.85f, 0.9f));
+
+    /* cover indicator: the one piece of state the player cannot read from
+       the scene alone */
+    if (world_behind_cover(pl.x, pl.y + chest_height())) {
+        float pulse = 0.55f + 0.25f * sinf(clock_t_ * 6.0f);
+        rnd_ui_quad(hx, hy + 26.0f, 30.0f, 3.0f,
+                    rgba(0.40f, 1.0f, 0.62f, pulse));
+        rnd_ui_quad(hx + 34.0f, hy + 26.0f, 3.0f, 3.0f,
+                    rgba(0.40f, 1.0f, 0.62f, pulse));
+        rnd_ui_quad(hx + 40.0f, hy + 26.0f, 3.0f, 3.0f,
+                    rgba(0.40f, 1.0f, 0.62f, pulse));
+    }
 
     /* dash readiness, mirrored to the other corner */
     float cd = 1.0f - clampf(pl.dash_cd / DASH_COOLDOWN, 0.0f, 1.0f);

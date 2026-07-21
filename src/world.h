@@ -5,7 +5,7 @@
 #include "neonfall.h"
 
 void world_init(const char *asset_root);
-void world_update(float dt, float px, float py, int p_facing);
+void world_update(float dt, float px, float py, int p_facing, float p_chest);
 void world_draw_back(void);    /* props behind the play plane */
 /* Multiplied into every prop, platform and enemy - used by the reflection pass. */
 void world_set_tint(Color c);
@@ -18,6 +18,9 @@ int  world_land(float x, float y_from, float y_to, float *out_y);
 float world_surface_under(float x, float y);
 
 void world_player_shoot(float x, float y, int facing);
+/* Cover: waist-high objects that stop bullets. Standing behind one leaves
+   your chest exposed; crouching puts you under the line of fire. */
+int  world_behind_cover(float x, float chest_y);
 /* Damage dealt to the player this tick, and where it came from. */
 int  world_take_player_damage(float px, float py);
 

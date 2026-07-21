@@ -76,6 +76,12 @@ void plat_poll(Input *in) {
     if (mv == 0.0f) mv = axis(pad, SDL_CONTROLLER_AXIS_LEFTX);
     in->move = clampf(mv, -1.0f, 1.0f);
 
+    in->down = k[SDL_SCANCODE_DOWN] || k[SDL_SCANCODE_S];
+    if (pad) {
+        in->down |= SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
+        if (axis(pad, SDL_CONTROLLER_AXIS_LEFTY) > 0.45f) in->down = 1;
+    }
+
     in->aim_x = axis(pad, SDL_CONTROLLER_AXIS_RIGHTX);
     in->aim_y = axis(pad, SDL_CONTROLLER_AXIS_RIGHTY);
 

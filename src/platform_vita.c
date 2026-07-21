@@ -32,6 +32,7 @@ void plat_poll(Input *in) {
     if (pad.buttons & SCE_CTRL_LEFT)  mv = -1.0f;
     if (pad.buttons & SCE_CTRL_RIGHT) mv =  1.0f;
     in->move = mv;
+    in->down = (pad.buttons & SCE_CTRL_DOWN) != 0 || stick(pad.ly) > 0.45f;
 
     in->aim_x = stick(pad.rx);
     in->aim_y = stick(pad.ry);

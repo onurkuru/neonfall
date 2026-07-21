@@ -20,6 +20,7 @@ typedef struct {
     float move;        /* -1..1 horizontal */
     float aim_x, aim_y;
     int jump, jump_held;
+    int down;          /* crouch / take cover */
     int dash;
     int attack;
     int fire;

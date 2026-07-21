@@ -85,6 +85,47 @@ static const Prop props[] = {
 };
 #define NUM_PROPS ((int)(sizeof props / sizeof props[0]))
 
+/* ---------------- cover ---------------- */
+
+/* Waist-high street furniture. A bullet crossing one dies there, so what
+   decides a firefight is whether your chest is above the lip or below it. */
+typedef struct { float x, y, w, h; int art; } Cover;
+
+static const Cover covers[] = {
+    {   6.0f, 0.0f, 2.4f, 1.5f, PR_BOX1 },
+    {  18.0f, 0.0f, 2.4f, 1.5f, PR_BOX2 },
+    {  28.0f, 0.0f, 2.4f, 1.5f, PR_BOX1 },
+    {  52.0f, 0.0f, 2.4f, 1.5f, PR_BOX2 },
+    {  64.0f, 0.0f, 2.4f, 1.5f, PR_BOX1 },
+    {  99.0f, 0.0f, 2.4f, 1.5f, PR_BOX2 },
+    { 108.0f, 0.0f, 2.4f, 1.5f, PR_BOX1 },
+    { 118.0f, 0.0f, 2.4f, 1.5f, PR_BOX2 },
+    { 166.0f, 0.0f, 2.4f, 1.5f, PR_BOX1 },
+    { 178.0f, 0.0f, 2.4f, 1.5f, PR_BOX2 },
+    /* a couple up on the ledges, so the climb has cover too */
+    {  33.0f, 6.2f, 2.2f, 1.4f, PR_BOX1 },
+    { 124.0f, 6.6f, 2.2f, 1.4f, PR_BOX2 },
+};
+#define NUM_COVERS ((int)(sizeof covers / sizeof covers[0]))
+
+int world_behind_cover(float x, float chest_y) {
+    for (int i = 0; i < NUM_COVERS; i++) {
+        const Cover *c = &covers[i];
+        if (x < c->x - 1.6f || x > c->x + c->w + 1.6f) continue;
+        if (chest_y < c->y + c->h) return 1;
+    }
+    return 0;
+}
+
+static int bullet_hits_cover(float x, float y) {
+    for (int i = 0; i < NUM_COVERS; i++) {
+        const Cover *c = &covers[i];
+        if (x < c->x || x > c->x + c->w) continue;
+        if (y >= c->y && y <= c->y + c->h) return 1;
+    }
+    return 0;
+}
+
 /* ---------------- enemies ---------------- */
 
 enum { EN_DRONE, EN_TURRET, EN_COP };
@@ -133,7 +174,7 @@ typedef struct { Tex tex; int frames; float fps; } Sheet;
 static Sheet sh_prop[PR_COUNT];
 static Sheet sh_drone, sh_turret, sh_cop_run, sh_cop_idle;
 static Sheet sh_shot, sh_hit, sh_boom;
-static Tex tx_slab, tx_span;
+static Tex tx_slab, tx_span, tx_support;
 static float world_t;
 static Color world_tint = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -161,6 +202,8 @@ void world_init(const char *root) {
     tx_slab = tex_load(path, 0);
     snprintf(path, sizeof path, "%s/tiles/span.png", root);
     tx_span = tex_load(path, 1);
+    snprintf(path, sizeof path, "%s/tiles/support.png", root);
+    tx_support = tex_load(path, 0);
 
     for (int i = 0; i < NUM_ENEMIES; i++) {
         Enemy *e = &enemies[i];
@@ -250,15 +293,15 @@ void world_player_shoot(float x, float y, int facing) {
 
 /* ---------------- update ---------------- */
 
-static void enemy_fire(Enemy *e, float px, float py) {
-    float dx = px - e->x, dy = (py + 1.0f) - (e->y + 0.8f);
+static void enemy_fire(Enemy *e, float px, float p_chest) {
+    float dx = px - e->x, dy = p_chest - (e->y + 0.8f);
     float d = sqrtf(dx * dx + dy * dy);
     if (d < 0.01f) return;
     float speed = (e->kind == EN_TURRET) ? 20.0f : 17.0f;
     spawn_bullet(e->x, e->y + 0.8f, dx / d * speed, dy / d * speed, 0);
 }
 
-void world_update(float dt, float px, float py, int p_facing) {
+void world_update(float dt, float px, float py, int p_facing, float p_chest) {
     (void)p_facing;
     world_t += dt;
 
@@ -291,7 +334,7 @@ void world_update(float dt, float px, float py, int p_facing) {
         if (dist < 26.0f) {
             e->fire_t -= dt;
             if (e->fire_t <= 0.0f) {
-                enemy_fire(e, px, py);
+                enemy_fire(e, px, p_chest);
                 e->fire_t = (e->kind == EN_TURRET) ? 1.5f
                           : (e->kind == EN_DRONE ? 1.9f : 2.3f);
             }
@@ -304,6 +347,12 @@ void world_update(float dt, float px, float py, int p_facing) {
         b->life -= dt;
         b->x += b->vx * dt;
         b->y += b->vy * dt;
+
+        if (bullet_hits_cover(b->x, b->y)) {
+            b->life = 0.0f;
+            spawn_burst(b->x, b->y);
+            continue;
+        }
 
         if (!b->from_player) continue;
         for (int j = 0; j < NUM_ENEMIES; j++) {
@@ -414,6 +463,34 @@ static void draw_platforms(void) {
                         rgba(0.78f * world_tint.r, 0.75f * world_tint.g,
                              0.98f * world_tint.b, world_tint.a));
         }
+        /* Legs down to whatever is under it. A ledge that visibly carries
+           its own weight reads as part of the street rather than a slab
+           someone left floating in the air. */
+        if (tx_support.id) {
+            float below = -8.0f;
+            for (int k = 0; k < NUM_PLATFORMS; k++) {
+                const Platform *q = &platforms[k];
+                if (q == p || q->y >= p->y - 0.5f) continue;
+                if (p->x + p->w < q->x || p->x > q->x + q->w) continue;
+                if (q->y > below) below = q->y;
+            }
+            float leg_w = tx_support.w / PPU;
+            int legs = (int)(p->w / 5.0f) + 1;
+            rnd_set_blend(BLEND_ALPHA);
+            rnd_set_tex(tx_support);
+            for (int k = 0; k < legs; k++) {
+                float lx = p->x + (p->w - leg_w) * (legs == 1 ? 0.5f
+                                                   : (float)k / (legs - 1))
+                         + leg_w * 0.5f;
+                float top = p->y - 0.45f, bot = below;
+                float h = top - bot;
+                if (h <= 0.2f) continue;
+                rnd_quad(lx, bot + h * 0.5f, Z_PLAY - 0.5f, leg_w * 0.7f, h,
+                         rgba(0.34f * world_tint.r, 0.33f * world_tint.g,
+                              0.52f * world_tint.b, world_tint.a));
+            }
+        }
+
         /* a lit edge so the landing line reads at a glance */
         rnd_set_blend(BLEND_ADD);
         rnd_set_tex(tx_slab);
@@ -421,6 +498,27 @@ static void draw_platforms(void) {
                  rgba(0.35f, 0.90f, 1.0f, 0.75f));
         rnd_set_blend(BLEND_ALPHA);
     }
+}
+
+static void draw_cover(void) {
+    for (int i = 0; i < NUM_COVERS; i++) {
+        const Cover *c = &covers[i];
+        draw_frame(sh_prop[c->art], c->x + c->w * 0.5f, c->y, Z_PLAY + 1.0f,
+                   c->h / (sh_prop[c->art].tex.h / PPU),
+                   world_t, 0, 0, rgba(0.62f, 0.60f, 0.85f, 1.0f));
+        /* the lip is the line that matters, so it gets a light of its own */
+        rnd_set_blend(BLEND_ADD);
+        rnd_set_tex(sh_prop[c->art].tex);
+        rnd_set_blend(BLEND_ALPHA);
+    }
+    rnd_set_blend(BLEND_ADD);
+    rnd_set_tex(tx_slab);
+    for (int i = 0; i < NUM_COVERS; i++) {
+        const Cover *c = &covers[i];
+        rnd_quad(c->x + c->w * 0.5f, c->y + c->h, Z_PLAY + 1.1f, c->w * 1.1f, 0.30f,
+                 rgba(0.35f, 0.90f, 1.0f, 0.55f));
+    }
+    rnd_set_blend(BLEND_ALPHA);
 }
 
 void world_draw_back(void) {
@@ -471,4 +569,5 @@ void world_draw_front(void) {
     }
 
     draw_props(Z_PROP_FRONT);
+    draw_cover();
 }
