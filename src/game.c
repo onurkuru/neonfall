@@ -20,6 +20,9 @@
 #define DASH_SPEED    26.0f
 #define DASH_TIME     0.16f
 #define DASH_COOLDOWN 0.42f
+/* The sprite is 2.88 units of character in a 4.19 unit frame; the gun sits
+   just above two thirds of the way up. */
+#define GUN_HEIGHT    1.95f
 
 
 /* depth planes: negative is away from the camera */
@@ -156,7 +159,7 @@ static void update_player(const Input *in, float dt) {
     if ((in->attack || in->fire) && pl.attack_t <= 0.0f) {
         pl.attack_t = 0.24f;
         pl.energy = clampf(pl.energy + 0.05f, 0.0f, 1.0f);
-        world_player_shoot(pl.x, pl.y + 1.05f, pl.facing);
+        world_player_shoot(pl.x, pl.y + GUN_HEIGHT, pl.facing);
     }
 
     if (pl.dash_t > 0.0f) {
@@ -359,17 +362,30 @@ static void draw_street(void) {
     rnd_set_blend(BLEND_ALPHA);
     rnd_set_tex(tx_white);
 
-    /* the road itself, darkening as it runs away from the kerb */
-    for (int i = 0; i < 8; i++) {
-        float t = i / 7.0f;
-        rnd_quad(cam_x, GROUND_Y - 0.6f - i * 1.5f, Z_DECK, 260.0f, 1.6f,
-                 rgba(lerpf(0.055f, 0.015f, t),
-                      lerpf(0.060f, 0.018f, t),
-                      lerpf(0.110f, 0.038f, t), 1.0f));
+    /* The road is drawn segment by segment from the same data the collision
+       uses, so a hole you can fall into is a hole you can see coming. */
+    const float *seg;
+    int nseg = world_ground_segments(&seg);
+
+    for (int k = 0; k < nseg; k++) {
+        float sx = seg[k * 3 + 0], sw = seg[k * 3 + 2];
+        if (sx + sw < cam_x - 40.0f || sx > cam_x + 40.0f) continue;
+        for (int i = 0; i < 8; i++) {
+            float t = i / 7.0f;
+            rnd_quad(sx + sw * 0.5f, GROUND_Y - 0.6f - i * 1.5f, Z_DECK, sw, 1.6f,
+                     rgba(lerpf(0.055f, 0.015f, t),
+                          lerpf(0.060f, 0.018f, t),
+                          lerpf(0.110f, 0.038f, t), 1.0f));
+        }
+        /* kerb: the one hard line that tells you where the ground is, and the
+           edge that warns you the road has run out */
+        rnd_quad(sx + sw * 0.5f, GROUND_Y + 0.04f, Z_DECK, sw, 0.10f,
+                 rgba(0.26f, 0.40f, 0.66f, 0.75f));
+        rnd_quad(sx + 0.12f, GROUND_Y - 2.0f, Z_DECK, 0.24f, 4.0f,
+                 rgba(0.24f, 0.38f, 0.62f, 0.55f));
+        rnd_quad(sx + sw - 0.12f, GROUND_Y - 2.0f, Z_DECK, 0.24f, 4.0f,
+                 rgba(0.24f, 0.38f, 0.62f, 0.55f));
     }
-    /* kerb: the one hard line that tells you where the ground is */
-    rnd_quad(cam_x, GROUND_Y + 0.03f, Z_DECK, 260.0f, 0.07f,
-             rgba(0.16f, 0.24f, 0.42f, 0.45f));
 
     /* every neon source lays a pool and a long streak on the wet road */
     for (int i = 0; i < NUM_LIGHTS; i++)
@@ -378,8 +394,11 @@ static void draw_street(void) {
     /* standing water catching the sky */
     rnd_set_blend(BLEND_ADD);
     rnd_set_tex(tx_white);
-    rnd_quad(cam_x, GROUND_Y - 0.9f, Z_DECK + 0.3f, 260.0f, 1.8f,
-             rgba(0.07f, 0.14f, 0.30f, 0.35f));
+    for (int k = 0; k < nseg; k++) {
+        float sx = seg[k * 3 + 0], sw = seg[k * 3 + 2];
+        rnd_quad(sx + sw * 0.5f, GROUND_Y - 0.9f, Z_DECK + 0.3f, sw, 1.8f,
+                 rgba(0.07f, 0.14f, 0.30f, 0.35f));
+    }
 }
 
 
@@ -420,7 +439,8 @@ static void draw_player(void) {
 
     if (pl.attack_t > 0.0f) {
         float t = 1.0f - (pl.attack_t / 0.24f);
-        fx_muzzle(pl.x + pl.facing * 1.1f, pl.y + 1.1f, Z_PLAY + 0.4f, pl.facing, t);
+        fx_muzzle(pl.x + pl.facing * 1.0f, pl.y + GUN_HEIGHT, Z_PLAY + 0.4f,
+                  pl.facing, t);
     }
 }
 

@@ -22,6 +22,9 @@ void world_player_shoot(float x, float y, int facing);
 int  world_take_player_damage(float px, float py);
 
 int  world_enemies_alive(void);
+/* Street-level segments, so the road is drawn from the same data it is
+   collided against and a hole you fall into is a hole you can see. */
+int  world_ground_segments(const float **out);   /* triples: x, y, width */
 float world_left_bound(void);
 float world_right_bound(void);
 

@@ -16,20 +16,24 @@ typedef struct { float x, y, w; } Platform;
 
 /* A street that climbs to the right: ground level, then fire escapes and
    walkway spans you have to work your way up. */
+/* A single jump clears 3.8 units, a double jump about twice that, so the
+   first step up is always within one jump and the height is earned in stages.
+   The street runs unbroken except where a collapsed span is drawn as a hole. */
 static const Platform platforms[] = {
-    { -20.0f,  0.0f, 46.0f },   /* the street you start on */
-    {  30.0f,  0.0f, 22.0f },
-    {  22.0f,  4.5f,  6.0f },   /* first hop up */
-    {  34.0f,  7.5f,  6.0f },
-    {  46.0f,  5.0f,  7.0f },
-    {  58.0f,  0.0f, 30.0f },   /* back down to the street */
-    {  76.0f,  6.0f,  6.0f },
-    {  88.0f,  9.5f,  7.0f },
-    { 100.0f,  5.0f,  6.0f },
-    { 110.0f,  0.0f, 34.0f },
-    { 132.0f,  7.0f, 10.0f },
-    { 150.0f, 11.0f,  9.0f },
-    { 166.0f,  0.0f, 40.0f },
+    { -20.0f,  0.0f,  88.0f },  /* the street, unbroken to the first hole */
+    {  22.0f,  3.2f,   7.0f },  /* fire escape up to the ledges */
+    {  33.0f,  6.2f,   7.0f },
+    {  45.0f,  9.0f,   8.0f },
+    {  58.0f,  6.0f,   7.0f },  /* back down the far side */
+    {  70.0f,  3.0f,   7.0f },
+    {  96.0f,  0.0f,  48.0f },  /* street resumes past the hole */
+    {  76.0f,  4.0f,   6.0f },  /* the crossing over the hole */
+    {  86.0f,  6.5f,   6.0f },
+    { 112.0f,  3.4f,   8.0f },
+    { 124.0f,  6.6f,   8.0f },
+    { 136.0f,  9.8f,   9.0f },
+    { 160.0f,  0.0f,  60.0f },  /* final stretch */
+    { 150.0f,  6.0f,   7.0f },  /* the crossing over the second hole */
 };
 #define NUM_PLATFORMS ((int)(sizeof platforms / sizeof platforms[0]))
 
@@ -95,17 +99,20 @@ typedef struct {
     int   facing;
 } Enemy;
 
+/* Every enemy sits on the route: on the street, on a ledge you have to
+   cross, or hovering over the gap you are about to jump. */
 static const struct { int kind; float x, y; } spawns[] = {
-    { EN_TURRET,  26.0f,  0.0f },
-    { EN_DRONE,   40.0f,  9.0f },
-    { EN_COP,     62.0f,  0.0f },
-    { EN_DRONE,   78.0f, 11.0f },
-    { EN_TURRET,  88.0f,  9.5f },
-    { EN_COP,     118.0f, 0.0f },
-    { EN_DRONE,  132.0f, 13.0f },
-    { EN_COP,    136.0f,  7.0f },
-    { EN_TURRET, 150.0f, 11.0f },
-    { EN_DRONE,  166.0f, 12.0f },
+    { EN_COP,     14.0f,  0.0f },
+    { EN_TURRET,  33.0f,  6.2f },   /* guarding the climb */
+    { EN_DRONE,   45.0f, 13.0f },
+    { EN_TURRET,  58.0f,  6.0f },
+    { EN_COP,     70.0f,  3.0f },
+    { EN_DRONE,   82.0f,  9.0f },   /* over the first hole */
+    { EN_COP,    104.0f,  0.0f },
+    { EN_TURRET, 124.0f,  6.6f },
+    { EN_DRONE,  136.0f, 14.0f },
+    { EN_COP,    136.0f,  9.8f },
+    { EN_DRONE,  152.0f, 10.0f },   /* over the second hole */
     { EN_COP,    176.0f,  0.0f },
 };
 #define NUM_ENEMIES ((int)(sizeof spawns / sizeof spawns[0]))
@@ -170,10 +177,28 @@ void world_init(const char *root) {
     memset(bursts, 0, sizeof bursts);
 }
 
+int world_ground_segments(const float **out) {
+    static float segs[NUM_PLATFORMS * 3];
+    int n = 0;
+    for (int i = 0; i < NUM_PLATFORMS; i++) {
+        if (platforms[i].y > 0.01f) continue;
+        segs[n * 3 + 0] = platforms[i].x;
+        segs[n * 3 + 1] = platforms[i].y;
+        segs[n * 3 + 2] = platforms[i].w;
+        n++;
+    }
+    *out = segs;
+    return n;
+}
+
 float world_left_bound(void)  { return platforms[0].x + 1.0f; }
 float world_right_bound(void) {
-    const Platform *p = &platforms[NUM_PLATFORMS - 1];
-    return p->x + p->w - 1.0f;
+    float right = -1e9f;
+    for (int i = 0; i < NUM_PLATFORMS; i++) {
+        float e = platforms[i].x + platforms[i].w;
+        if (e > right) right = e;
+    }
+    return right - 1.0f;
 }
 
 /* ---------------- collision ---------------- */
@@ -386,14 +411,14 @@ static void draw_platforms(void) {
             if (w <= 0.05f) break;
             rnd_quad_uv(x + w * 0.5f, p->y - th * 0.5f, Z_PLAY - 0.4f, w, th,
                         0.0f, 0.0f, w / tw, 1.0f,
-                        rgba(0.42f * world_tint.r, 0.40f * world_tint.g,
-                             0.60f * world_tint.b, world_tint.a));
+                        rgba(0.78f * world_tint.r, 0.75f * world_tint.g,
+                             0.98f * world_tint.b, world_tint.a));
         }
         /* a lit edge so the landing line reads at a glance */
         rnd_set_blend(BLEND_ADD);
         rnd_set_tex(tx_slab);
-        rnd_quad(p->x + p->w * 0.5f, p->y + 0.06f, Z_PLAY - 0.3f, p->w, 0.34f,
-                 rgba(0.30f, 0.85f, 1.0f, 0.30f));
+        rnd_quad(p->x + p->w * 0.5f, p->y + 0.07f, Z_PLAY - 0.3f, p->w, 0.5f,
+                 rgba(0.35f, 0.90f, 1.0f, 0.75f));
         rnd_set_blend(BLEND_ALPHA);
     }
 }
