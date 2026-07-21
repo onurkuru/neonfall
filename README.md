@@ -91,3 +91,15 @@ This path is kept for generated painterly art; the shipping set is pixel art
 and uses plain frame animation.
 
 `src/third_party/stb_image.h` is public domain (Sean Barrett).
+
+## Generating sprites with PixelLab
+
+`.mcp.json` wires up PixelLab's MCP server, which generates pixel-art sprites
+and animations. It reads the token from the environment, so nothing secret
+lives in this repository:
+
+```sh
+export PIXELLAB_SECRET=your_token   # from pixellab.ai, free tier is enough
+```
+
+Restart Claude Code afterwards so it picks the server up.

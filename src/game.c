@@ -57,7 +57,8 @@ static Player pl;
 static float  cam_x, cam_y, shake, clock_t_;
 static uint32_t rng_state = 0x1337c0deu;
 
-static Tex tx_white;
+static Tex tx_white, tx_grain, tx_grain_b;
+static float intro_t, hitstop_t, sway_t;
 static Tex tx_layer[6];
 static Tex tx_deck;
 typedef struct { Tex tex; int frames; float fps; } Anim;
@@ -100,6 +101,8 @@ void game_init(void) {
     pl.jumps_left = 2;
 
     tx_white  = make_white();
+    tx_grain   = load("fx/grain.png", 0);
+    tx_grain_b = load("fx/grain-b.png", 0);
 
     tx_layer[0] = load("bg/l1-far.png", 1);
     tx_layer[1] = load("bg/l2-skyline.png", 1);
@@ -265,6 +268,14 @@ static void update_player(const Input *in, float dt) {
 
 void game_update(const Input *in, float dt) {
     clock_t_ += dt;
+    intro_t += dt;
+    sway_t  += dt;
+
+    /* A beat of frozen time on a kill. Nothing else sells a hit as cheaply. */
+    if (hitstop_t > 0.0f) {
+        hitstop_t -= dt;
+        return;
+    }
 
     int was_air = !pl.on_ground;
     update_player(in, dt);
@@ -278,10 +289,17 @@ void game_update(const Input *in, float dt) {
     float target_y = 2.6f + pl.y * 0.45f;
     cam_x = lerpf(cam_x, target_x, clampf(dt * 4.2f, 0.0f, 1.0f));
     cam_y = lerpf(cam_y, target_y, clampf(dt * 3.0f, 0.0f, 1.0f));
+    cam_x += sinf(sway_t * 0.37f) * 0.07f;
+    cam_y += sinf(sway_t * 0.51f + 1.3f) * 0.05f;
 
     if (shake > 0.0f) shake = clampf(shake - dt * 0.9f, 0.0f, 1.0f);
 
+    int before = world_enemies_alive();
     world_update(dt, pl.x, pl.y, pl.facing, pl.y + chest_height());
+    if (world_enemies_alive() < before) {
+        hitstop_t = 0.09f;
+        shake = 0.22f;
+    }
     city_update(dt, cam_x);
     fx_update(dt, cam_x, cam_y, GROUND_Y);
     fx_update_bokeh(dt, cam_x, cam_y);
@@ -554,6 +572,36 @@ static void draw_post(void) {
                 rgba(0.35f, 0.93f, 1.0f, 0.14f));
     rnd_ui_quad(SCREEN_W - 26.0f - 64.0f, SCREEN_H - bar - 22.0f, 64.0f * cd, 2.0f,
                 rgba(0.35f, 0.93f, 1.0f, 0.85f));
+
+    /* Film grain: two scratch plates drifting at different speeds, so the
+       noise never sits still long enough to look like a texture. */
+    rnd_set_blend(BLEND_ADD);
+    for (int i = 0; i < 2; i++) {
+        rnd_set_tex(i ? tx_grain_b : tx_grain);
+        float ox = sinf(clock_t_ * (7.0f + i * 5.0f)) * 40.0f;
+        float oy = cosf(clock_t_ * (6.0f + i * 4.0f)) * 40.0f;
+        rnd_ui_quad(-60.0f + ox, -60.0f + oy, SCREEN_W + 120.0f, SCREEN_H + 120.0f,
+                    rgba(0.55f, 0.58f, 0.72f, 0.026f));
+    }
+
+    /* Chromatic fringing, but only where a lens would actually show it:
+       hard against the left and right edges of the frame. */
+    rnd_set_tex(tx_white);
+    for (int i = 0; i < 6; i++) {
+        float a = 0.030f * (6 - i) / 6.0f;
+        rnd_ui_quad((float)i * 4.0f, bar, 4.0f, SCREEN_H - bar * 2.0f,
+                    rgba(0.9f, 0.15f, 0.35f, a));
+        rnd_ui_quad(SCREEN_W - (i + 1) * 4.0f, bar, 4.0f, SCREEN_H - bar * 2.0f,
+                    rgba(0.15f, 0.75f, 1.0f, a));
+    }
+
+    /* Open on black and come up slowly, the way the scene deserves. */
+    if (intro_t < 2.4f) {
+        float a = clampf(1.0f - (intro_t - 0.5f) / 1.6f, 0.0f, 1.0f);
+        rnd_set_blend(BLEND_ALPHA);
+        rnd_set_tex(tx_white);
+        rnd_ui_quad(0, 0, SCREEN_W, SCREEN_H, rgba(0.0f, 0.0f, 0.0f, a));
+    }
 
     rnd_ui_end();
 }
