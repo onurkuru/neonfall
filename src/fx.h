@@ -33,6 +33,12 @@ void fx_flush_lights(void);
 /* The pool of light a source throws onto the wet ground below it. */
 void fx_light_on_ground(const Light *l, float t, float ground_y, float z);
 void fx_flush_pools(float t);
+/* Volumetric shaft hanging under a source, and the out-of-focus highlights
+   that sit between the lens and the scene. */
+void fx_shaft(const Light *l, float t, float length);
+void fx_flush_shafts(void);
+void fx_update_bokeh(float dt, float cam_x, float cam_y);
+void fx_draw_bokeh(void);
 
 void fx_impact(float x, float y, float z, Color c, float t01);
 void fx_muzzle(float x, float y, float z, int facing, float t01);

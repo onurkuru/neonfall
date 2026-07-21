@@ -11,7 +11,7 @@
 
 /* camera: 40 degree vertical FOV, VIEW_H world units tall at the play plane */
 #define FOV_Y   40.0f
-#define VIEW_H  18.0f
+#define VIEW_H  12.5f
 #define CAM_Z   (VIEW_H * 0.5f / 0.363970f)
 
 /* ---------- platform layer ---------- */

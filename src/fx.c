@@ -157,6 +157,20 @@ void fx_draw_steam(void) {
     }
 }
 
+/* ---------------- volumetric shafts ---------------- */
+
+#define MAX_SHAFTS 48
+static Light shafts[MAX_SHAFTS];
+static float shaft_len[MAX_SHAFTS], shaft_a[MAX_SHAFTS];
+static int   shaft_n;
+
+/* ---------------- bokeh ---------------- */
+
+#define NUM_BOKEH 14
+typedef struct { float x, y, z, r, drift, phase; Color c; } Bokeh;
+static Bokeh bokeh[NUM_BOKEH];
+static int   bokeh_ready;
+
 static float flicker(const Light *l, float t) {
     float a = 0.86f + 0.14f * sinf(t * l->freq + l->phase);
     if (sinf(t * l->freq * 3.7f + l->phase * 5.0f) > 0.965f) a *= 0.25f;
@@ -264,6 +278,83 @@ void fx_flush_pools(float t) {
         }
     }
     pool_n = 0;
+}
+
+void fx_shaft(const Light *l, float t, float length) {
+    if (shaft_n >= MAX_SHAFTS) return;
+    shafts[shaft_n] = *l;
+    shaft_len[shaft_n] = length;
+    shaft_a[shaft_n] = flicker(l, t);
+    shaft_n++;
+}
+
+/* A cone of lit rain under each source, built from stacked quads that widen
+   and fade as they fall. Cheap, and it is what makes the air look wet. */
+void fx_flush_shafts(void) {
+    if (!shaft_n) return;
+    rnd_set_blend(BLEND_ADD);
+    rnd_set_tex(tx_glow);
+    for (int i = 0; i < shaft_n; i++) {
+        const Light *l = &shafts[i];
+        float len = shaft_len[i];
+        for (int k = 0; k < 6; k++) {
+            float t = (k + 0.5f) / 6.0f;
+            float y = l->y - len * t;
+            float w = l->radius * (0.9f + t * 2.6f);
+            float a = shaft_a[i] * (1.0f - t) * (1.0f - t) * 0.13f * l->color.a;
+            rnd_quad(l->x, y, l->z, w, len / 5.0f,
+                     rgba(l->color.r, l->color.g, l->color.b, a));
+        }
+    }
+    shaft_n = 0;
+}
+
+void fx_update_bokeh(float dt, float cam_x, float cam_y) {
+    if (!bokeh_ready) {
+        for (int i = 0; i < NUM_BOKEH; i++) {
+            Bokeh *b = &bokeh[i];
+            b->x = cam_x + frand(-22.0f, 22.0f);
+            b->y = cam_y + frand(-9.0f, 9.0f);
+            b->z = 6.0f + frand(0.0f, 8.0f);
+            b->r = frand(1.4f, 4.2f);
+            b->drift = frand(-0.35f, 0.35f);
+            b->phase = frand(0.0f, 6.28f);
+            switch (i % 3) {
+                case 0:  b->c = rgba(0.30f, 0.85f, 1.00f, 1.0f); break;
+                case 1:  b->c = rgba(1.00f, 0.30f, 0.75f, 1.0f); break;
+                default: b->c = rgba(1.00f, 0.68f, 0.30f, 1.0f); break;
+            }
+        }
+        bokeh_ready = 1;
+    }
+    for (int i = 0; i < NUM_BOKEH; i++) {
+        Bokeh *b = &bokeh[i];
+        b->x += b->drift * dt;
+        b->y -= dt * 0.25f;                       /* drift down like the rain */
+        if (b->y < cam_y - 11.0f) b->y = cam_y + 11.0f;
+        if (b->x < cam_x - 24.0f) b->x = cam_x + 24.0f;
+        if (b->x > cam_x + 24.0f) b->x = cam_x - 24.0f;
+    }
+}
+
+/* Out-of-focus highlights between the lens and the scene. Real depth of
+   field needs a blur pass; this is the part of it that reads. */
+void fx_draw_bokeh(void) {
+    rnd_set_blend(BLEND_ADD);
+    rnd_set_tex(tx_glow);
+    for (int i = 0; i < NUM_BOKEH; i++) {
+        const Bokeh *b = &bokeh[i];
+        float pulse = 0.75f + 0.25f * sinf(b->phase + b->x * 0.2f);
+        rnd_quad(b->x, b->y, b->z, b->r * 2.0f, b->r * 2.0f,
+                 rgba(b->c.r, b->c.g, b->c.b, 0.052f * pulse));
+    }
+    /* a couple of hard-edged rings, the way a real lens renders bright points */
+    rnd_set_tex(tx_ring);
+    for (int i = 0; i < NUM_BOKEH; i += 3) {
+        const Bokeh *b = &bokeh[i];
+        rnd_quad(b->x, b->y, b->z, b->r * 1.7f, b->r * 1.7f,
+                 rgba(b->c.r, b->c.g, b->c.b, 0.045f));
+    }
 }
 
 void fx_impact(float x, float y, float z, Color c, float t01) {

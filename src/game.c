@@ -271,16 +271,20 @@ void game_update(const Input *in, float dt) {
     if (was_air != !pl.on_ground) pl.anim_t = 0.0f;
     if (pl.on_ground && fabsf(pl.vx) < 0.6f) pl.anim_t = clock_t_;
 
-    float target_x = pl.x + pl.vx * 0.22f;
-    float target_y = 4.2f + pl.y * 0.40f;
-    cam_x = lerpf(cam_x, target_x, clampf(dt * 5.0f, 0.0f, 1.0f));
-    cam_y = lerpf(cam_y, target_y, clampf(dt * 3.4f, 0.0f, 1.0f));
+    /* The frame is tight, so the camera leads hard when you run and settles
+       back when you stop - otherwise you outrun what you can see. */
+    float lead = clampf(fabsf(pl.vx) / RUN_SPEED, 0.0f, 1.0f);
+    float target_x = pl.x + pl.vx * (0.20f + lead * 0.28f);
+    float target_y = 2.6f + pl.y * 0.45f;
+    cam_x = lerpf(cam_x, target_x, clampf(dt * 4.2f, 0.0f, 1.0f));
+    cam_y = lerpf(cam_y, target_y, clampf(dt * 3.0f, 0.0f, 1.0f));
 
     if (shake > 0.0f) shake = clampf(shake - dt * 0.9f, 0.0f, 1.0f);
 
     world_update(dt, pl.x, pl.y, pl.facing, pl.y + chest_height());
     city_update(dt, cam_x);
     fx_update(dt, cam_x, cam_y, GROUND_Y);
+    fx_update_bokeh(dt, cam_x, cam_y);
 }
 
 /* ---------------- draw ---------------- */
@@ -362,8 +366,12 @@ static void draw_background(void) {
              rgba(0.020f, 0.022f, 0.050f, 1.0f));}
 
 static void draw_lights(void) {
-    for (int i = 0; i < NUM_LIGHTS; i++)
+    for (int i = 0; i < NUM_LIGHTS; i++) {
         fx_light(&lights[i], clock_t_);
+        /* the shaft only makes sense on sources hanging over the street */
+        if (lights[i].y > 3.0f)
+            fx_shaft(&lights[i], clock_t_, lights[i].y - GROUND_Y);
+    }
 }
 
 
@@ -558,6 +566,7 @@ void game_draw(void) {
     draw_background();
     draw_lights();
     fx_flush_lights();          /* city neon lands before the rain in front of it */
+    fx_flush_shafts();          /* then the rain lit inside those shafts */
     fx_draw_rain_far();
     draw_street();
     city_draw_crowd();
@@ -571,5 +580,6 @@ void game_draw(void) {
     draw_reflections();
     fx_draw_splashes();
     fx_draw_rain_near();
+    fx_draw_bokeh();            /* between the lens and everything else */
     draw_post();
 }
