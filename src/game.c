@@ -130,10 +130,14 @@ void game_init(void) {
         l->y = 2.0f + nf_randf(&rng_state) * 10.0f;
         l->z = (i % 3 == 0) ? Z_L3 : ((i % 3 == 1) ? Z_L4 : Z_L5);
         l->radius = 1.4f + nf_randf(&rng_state) * 2.2f;
-        switch (i % 3) {
-            case 0:  l->color = rgba(0.30f, 0.91f, 1.00f, 1.0f); break;
-            case 1:  l->color = rgba(1.00f, 0.28f, 0.72f, 1.0f); break;
-            default: l->color = rgba(1.00f, 0.66f, 0.26f, 1.0f); break;
+        /* Mostly sodium amber with teal among it, and magenta kept rare so
+           it still means something when it shows up. */
+        switch (i % 5) {
+            case 0:  l->color = rgba(1.00f, 0.62f, 0.24f, 1.0f); break;
+            case 1:  l->color = rgba(0.26f, 0.78f, 0.86f, 1.0f); break;
+            case 2:  l->color = rgba(1.00f, 0.70f, 0.34f, 1.0f); break;
+            case 3:  l->color = rgba(0.30f, 0.86f, 0.94f, 1.0f); break;
+            default: l->color = rgba(1.00f, 0.30f, 0.62f, 1.0f); break;
         }
         l->freq  = 0.7f + nf_randf(&rng_state) * 2.4f;
         l->phase = nf_randf(&rng_state) * 6.28f;
@@ -346,9 +350,9 @@ static void draw_layer(Tex t, float z, float height_units, float y_base, Color c
 static void draw_sky_dome(void) {
     /* the glow the unseen city throws up into the rain */
     Light dome = { cam_x - 30.0f, 16.0f, Z_SKY + 20.0f,
-                   rgba(0.42f, 0.14f, 0.50f, 0.55f), 60.0f, 0.21f, 0.4f, 0 };
+                   rgba(0.62f, 0.34f, 0.14f, 0.60f), 60.0f, 0.21f, 0.4f, 0 };
     Light dome2 = { cam_x + 140.0f, 10.0f, Z_SKY + 20.0f,
-                    rgba(0.10f, 0.34f, 0.60f, 0.50f), 52.0f, 0.17f, 2.2f, 0 };
+                    rgba(0.10f, 0.30f, 0.42f, 0.55f), 52.0f, 0.17f, 2.2f, 0 };
     fx_light(&dome, clock_t_);
     fx_light(&dome2, clock_t_);
 }
@@ -360,23 +364,23 @@ static void draw_haze(float z, float density) {
     rnd_set_tex(tx_white);
     rnd_quad(cam_x, cam_y, z,
              VIEW_H * 2.2f * s, VIEW_H * 1.6f * s,
-             rgba(0.13f, 0.07f, 0.22f, density));
+             rgba(0.075f, 0.115f, 0.155f, density));
 }
 
 static void draw_background(void) {
     /* every layer is anchored by its base near the walkway line and rises
        past the top of the frame, so the city towers over the player */
-    draw_layer(tx_layer[0], Z_SKY, 30.0f, -4.0f, rgba(0.34f, 0.30f, 0.52f, 1.0f));
+    draw_layer(tx_layer[0], Z_SKY, 30.0f, -4.0f, rgba(0.22f, 0.30f, 0.38f, 1.0f));
     draw_sky_dome();
-    draw_layer(tx_layer[1], Z_L1, 24.0f, -3.0f, rgba(0.30f, 0.27f, 0.46f, 1.0f));
-    draw_haze(Z_L1 + 8.0f, 0.26f);
-    draw_layer(tx_layer[2], Z_L2, 20.0f, -3.0f, rgba(0.36f, 0.33f, 0.54f, 1.0f));
-    draw_haze(Z_L2 + 6.0f, 0.18f);
+    draw_layer(tx_layer[1], Z_L1, 24.0f, -3.0f, rgba(0.20f, 0.28f, 0.34f, 1.0f));
+    draw_haze(Z_L1 + 8.0f, 0.52f);
+    draw_layer(tx_layer[2], Z_L2, 20.0f, -3.0f, rgba(0.27f, 0.35f, 0.42f, 1.0f));
+    draw_haze(Z_L2 + 6.0f, 0.38f);
     city_draw_traffic();
-    draw_layer(tx_layer[3], Z_L3, 17.0f, -3.0f, rgba(0.44f, 0.41f, 0.62f, 1.0f));
-    draw_haze(Z_L3 + 5.0f, 0.10f);
-    draw_layer(tx_layer[4], Z_L4, 14.0f, -3.0f, rgba(0.52f, 0.49f, 0.70f, 1.0f));
-    draw_layer(tx_layer[5], Z_L5, 11.0f, -3.0f, rgba(0.16f, 0.15f, 0.30f, 1.0f));
+    draw_layer(tx_layer[3], Z_L3, 17.0f, -3.0f, rgba(0.38f, 0.45f, 0.52f, 1.0f));
+    draw_haze(Z_L3 + 5.0f, 0.22f);
+    draw_layer(tx_layer[4], Z_L4, 14.0f, -3.0f, rgba(0.50f, 0.55f, 0.62f, 1.0f));
+    draw_layer(tx_layer[5], Z_L5, 11.0f, -3.0f, rgba(0.10f, 0.13f, 0.18f, 1.0f));
 
     /* close the bottom of the frame: below the walkway is unlit depth */
     rnd_set_blend(BLEND_ALPHA);
@@ -411,9 +415,9 @@ static void draw_street(void) {
         for (int i = 0; i < 8; i++) {
             float t = i / 7.0f;
             rnd_quad(sx + sw * 0.5f, GROUND_Y - 0.6f - i * 1.5f, Z_DECK, sw, 1.6f,
-                     rgba(lerpf(0.055f, 0.015f, t),
-                          lerpf(0.060f, 0.018f, t),
-                          lerpf(0.110f, 0.038f, t), 1.0f));
+                     rgba(lerpf(0.030f, 0.010f, t),
+                          lerpf(0.052f, 0.016f, t),
+                          lerpf(0.070f, 0.026f, t), 1.0f));
         }
         /* kerb: the one hard line that tells you where the ground is, and the
            edge that warns you the road has run out */
@@ -435,7 +439,7 @@ static void draw_street(void) {
     for (int k = 0; k < nseg; k++) {
         float sx = seg[k * 3 + 0], sw = seg[k * 3 + 2];
         rnd_quad(sx + sw * 0.5f, GROUND_Y - 0.9f, Z_DECK + 0.3f, sw, 1.8f,
-                 rgba(0.07f, 0.14f, 0.30f, 0.35f));
+                 rgba(0.06f, 0.15f, 0.20f, 0.38f));
     }
 }
 
@@ -458,7 +462,7 @@ static void draw_player_frame(float z, Color tint) {
 static void draw_player(void) {
     /* backlight so the character separates from the city behind it */
     Light back = { pl.x, pl.y + 1.0f, Z_PLAY - 0.6f,
-                   rgba(0.18f, 0.52f, 0.85f, 0.5f), 1.8f, 0.0f, 0.0f, 0 };
+                   rgba(0.22f, 0.60f, 0.68f, 0.5f), 1.8f, 0.0f, 0.0f, 0 };
     fx_light(&back, clock_t_);
 
     if (pl.dash_t > 0.0f) {

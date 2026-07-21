@@ -429,9 +429,11 @@ static void draw_props(float z_filter) {
         /* signs light their own patch of street */
         if (p->kind == PR_NEON || p->kind == PR_SUSHI || p->kind == PR_BIG ||
             p->kind == PR_LIGHT || p->kind == PR_BANNER_C || p->kind == PR_HOTEL) {
-            Color c = (i % 3 == 0) ? rgba(0.30f, 0.91f, 1.0f, 0.9f)
-                    : (i % 3 == 1) ? rgba(1.0f, 0.32f, 0.72f, 0.9f)
-                                   : rgba(1.0f, 0.68f, 0.28f, 0.9f);
+            Color c = (i % 5 == 0) ? rgba(1.00f, 0.64f, 0.26f, 0.9f)
+                    : (i % 5 == 1) ? rgba(0.28f, 0.80f, 0.88f, 0.9f)
+                    : (i % 5 == 2) ? rgba(1.00f, 0.72f, 0.36f, 0.9f)
+                    : (i % 5 == 3) ? rgba(0.32f, 0.88f, 0.94f, 0.9f)
+                                   : rgba(1.00f, 0.32f, 0.64f, 0.9f);
             Light l = { p->x, p->y + 1.2f, p->z + 0.5f, c, 2.0f,
                         1.1f + (i % 5) * 0.4f, (float)i, (i % 4) == 0 };
             fx_light(&l, world_t);

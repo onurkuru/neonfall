@@ -152,7 +152,7 @@ void fx_draw_steam(void) {
             const Steam *s = &steam[i];
             float fade = s->life * (1.0f - s->life) * 4.0f;   /* in and out */
             rnd_quad(s->x, s->y, s->z, s->size, s->size * 0.75f,
-                     rgba(0.42f, 0.40f, 0.62f, clampf(fade, 0.0f, 1.0f) * 0.22f));
+                     rgba(0.34f, 0.44f, 0.50f, clampf(fade, 0.0f, 1.0f) * 0.26f));
         }
     }
 }
@@ -319,10 +319,11 @@ void fx_update_bokeh(float dt, float cam_x, float cam_y) {
             b->r = frand(1.4f, 4.2f);
             b->drift = frand(-0.35f, 0.35f);
             b->phase = frand(0.0f, 6.28f);
-            switch (i % 3) {
-                case 0:  b->c = rgba(0.30f, 0.85f, 1.00f, 1.0f); break;
-                case 1:  b->c = rgba(1.00f, 0.30f, 0.75f, 1.0f); break;
-                default: b->c = rgba(1.00f, 0.68f, 0.30f, 1.0f); break;
+            switch (i % 4) {
+                case 0:  b->c = rgba(1.00f, 0.66f, 0.28f, 1.0f); break;
+                case 1:  b->c = rgba(0.30f, 0.82f, 0.90f, 1.0f); break;
+                case 2:  b->c = rgba(1.00f, 0.74f, 0.40f, 1.0f); break;
+                default: b->c = rgba(1.00f, 0.34f, 0.62f, 1.0f); break;
             }
         }
         bokeh_ready = 1;
