@@ -58,9 +58,12 @@ All art is CC0 (public domain), so it can live in this repository and ship
 inside the VPK without restriction:
 
 - **Warped City** and **Warped City 2** by [ansimuz](https://ansimuz.itch.io/) —
-  city layers, walkway tiles, player animations.
+  city layers, walkway tiles, props, enemies, vehicles.
 - **Particle Pack** by [Kenney](https://kenney.nl/assets/particle-pack) —
   glows, lens flares, rain, splash rings, steam, sparks and muzzle flashes.
+
+The player character, Kaya, was generated with [PixelLab](https://www.pixellab.ai/)
+and is owned outright. Only the east-facing view exists; the engine flips it.
 
 The mood does not come from the sprites: `src/fx.c` drives the neon sources,
 their pools on the wet walkway, two depth bands of rain, splash rings and

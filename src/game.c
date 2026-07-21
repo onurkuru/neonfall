@@ -112,13 +112,14 @@ void game_init(void) {
     tx_layer[5] = load("bg/l6-fore.png", 1);
     tx_deck     = load("tiles/deck.png", 1);
 
-    an_idle  = (Anim){ load("player/idle.png", 0),  4, 8.0f  };
-    an_run   = (Anim){ load("player/run.png", 0),   8, 14.0f };
-    an_jump  = (Anim){ load("player/jump.png", 0),  5, 10.0f };
-    an_shoot = (Anim){ load("player/shoot.png", 0), 1, 12.0f };
-    an_walk  = (Anim){ load("player/walk.png", 0),  16, 12.0f };
-    an_hurt  = (Anim){ load("player/hurt.png", 0),   1, 8.0f  };
-    an_crouch= (Anim){ load("player/crouch.png", 0), 1, 8.0f  };
+    /* Kaya, generated with PixelLab: one side view, flipped for the other. */
+    an_idle  = (Anim){ load("player/idle.png", 0),   4,  7.0f  };
+    an_walk  = (Anim){ load("player/walk.png", 0),   4,  9.0f  };
+    an_run   = (Anim){ load("player/run.png", 0),    6, 14.0f  };
+    an_jump  = (Anim){ load("player/jump.png", 0),   9, 13.0f  };
+    an_crouch= (Anim){ load("player/crouch.png", 0), 5, 12.0f  };
+    an_hurt  = (Anim){ load("player/hurt.png", 0),   6, 12.0f  };
+    an_shoot = (Anim){ load("player/shoot.png", 0),  9, 22.0f  };
     fx_init(asset_root());
     world_init(asset_root());
     city_init(asset_root());
